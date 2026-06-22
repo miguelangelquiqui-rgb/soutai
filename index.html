@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScoutAI — Análisis Deportivo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{--bg:#07090f;--s1:#0d1117;--s2:#131a24;--s3:#1a2333;--border:#1e2d45;--accent:#00e5ff;--accent2:#7c3aed;--green:#00c48c;--red:#ff4757;--yellow:#ffd32a;--text:#dde8f4;--muted:#4a6a88;--muted2:#2a4060}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh}
+.header{position:sticky;top:0;z-index:200;background:rgba(7,9,15,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.logo-name{font-size:17px;font-weight:700;letter-spacing:-.5px}
+.logo-name span{color:var(--accent)}
+.date-pill{background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted)}
+.screen{display:none}.screen.active{display:block}
+.wrap{max-width:680px;margin:0 auto;padding:24px 16px 60px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.eyebrow::after{content:'';flex:1;height:1px;background:var(--border)}
+.lscroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:24px;scrollbar-width:none}
+.lscroll::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip:hover,.chip.active{background:rgba(0,229,255,.08);border-color:var(--accent);color:var(--accent)}
+.mlist{display:flex;flex-direction:column;gap:10px}
+.mc{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:18px 20px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.mc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent2)}
+.mc:hover{border-color:rgba(0,229,255,.3);transform:translateX(2px)}
+.ctop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cl{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+.ct{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
+.cteams{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cteam{flex:1}.cteam.away{text-align:right}
+.tnm{font-size:15px;font-weight:700}
+.cct{text-align:center;flex-shrink:0;font-size:11px;color:var(--muted2);font-weight:700;letter-spacing:2px}
+.fbs{display:flex;gap:3px;margin-top:5px}
+.fbs.r{justify-content:flex-end}
+.fb{width:18px;height:18px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700}
+.fb.W{background:rgba(0,196,140,.2);color:var(--green)}.fb.D{background:rgba(255,211,42,.2);color:var(--yellow)}.fb.L{background:rgba(255,71,87,.2);color:var(--red)}
+.cf2{display:flex;gap:6px;margin-top:12px;align-items:center}
+.ctag{background:var(--s3);border-radius:6px;padding:3px 9px;font-size:10px;color:var(--muted)}
+.ahint{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
+.nota{background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);border-radius:10px;padding:10px 14px;font-size:11px;color:var(--muted);margin-bottom:20px;text-align:center}
+.bbtn{display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:24px}
+.ald{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:40px 24px;text-align:center}
+.spin{width:36px;height:36px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 20px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.lss{margin-top:20px;text-align:left;max-width:300px;margin-left:auto;margin-right:auto}
+.ls{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12px;color:var(--muted)}
+.ls.a{color:var(--accent)}.ls.d{color:var(--green)}
+.ld{width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0}
+.ls.a .ld{background:var(--accent)}.ls.d .ld{background:var(--green)}
+.rb{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px}
+.re{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.rmh{text-align:center;padding:24px 20px}
+.rln{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.rts2{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+.rtn{font-size:clamp(17px,4vw,26px);font-weight:700}
+.rtsub{font-size:11px;color:var(--muted);margin-top:3px}
+.rvs{font-size:10px;color:var(--muted2);font-weight:700;letter-spacing:3px;padding:6px 12px;border:1px solid var(--border);border-radius:6px}
+.ostrip{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.op{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:center;min-width:80px}
+.ol2{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.ov{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:600}
+.oi{font-size:9px;color:var(--muted);margin-top:2px}
+.reco{border-radius:16px;padding:22px;margin-bottom:14px;background:linear-gradient(135deg,rgba(0,196,140,.1),rgba(0,196,140,.03));border:1px solid rgba(0,196,140,.25)}
+.rl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--green);text-transform:uppercase;margin-bottom:8px}
+.rpick{font-size:24px;font-weight:700;margin-bottom:8px}
+.rwhy{font-size:13px;color:#7a9ab8;line-height:1.7}
+.cbar{background:rgba(255,255,255,.05);border-radius:99px;height:5px;margin-top:14px;overflow:hidden}
+.cfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--accent));transition:width 1.2s ease;width:0%}
+.cmeta{display:flex;justify-content:space-between;margin-top:5px;font-size:10px;color:var(--muted)}
+.pr2{margin-bottom:12px}
+.ph2{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px}
+.pn{font-weight:600}.pp{font-family:'JetBrains Mono',monospace;font-weight:600}
+.pt{background:rgba(255,255,255,.04);border-radius:99px;height:7px;overflow:hidden}
+.pf{height:100%;border-radius:99px;transition:width 1.3s ease;width:0%}
+.pfh{background:linear-gradient(90deg,var(--accent),#0099bb)}
+.pfd{background:linear-gradient(90deg,var(--yellow),#bb8800)}
+.pfa{background:linear-gradient(90deg,var(--accent2),#5522aa)}
+.s2c{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:480px){.s2c{grid-template-columns:1fr}}
+.sr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:12px}
+.sr:last-child{border-bottom:none}
+.sl2{color:var(--muted)}.sv{font-family:'JetBrains Mono',monospace;font-weight:600}
+.cg{color:var(--green)}.crr{color:var(--red)}.cy{color:var(--yellow)}.ca{color:var(--accent)}.cm{color:var(--muted);font-size:11px;font-family:'Space Grotesk',sans-serif}
+.fi{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:12px;line-height:1.5;color:#7a9ab8}
+.fi:last-child{border-bottom:none}
+.fic{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px}
+.fic.pos{background:rgba(0,196,140,.15);color:var(--green)}.fic.neg{background:rgba(255,71,87,.15);color:var(--red)}.fic.neu{background:rgba(255,211,42,.15);color:var(--yellow)}
+.at{font-size:13px;line-height:1.85;color:#7a9ab8}
+.vbelt{background:linear-gradient(135deg,rgba(0,196,140,.1),rgba(0,229,255,.05));border:1px solid rgba(0,196,140,.25);border-radius:14px;padding:18px;margin-bottom:14px}
+.vbt{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--green);text-transform:uppercase;margin-bottom:12px}
+.vbr{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(30,45,69,.3)}
+.vbr:last-child{border-bottom:none}
+.vbl{color:var(--muted)}.vbv{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--green)}
+.disc{background:rgba(255,71,87,.04);border:1px solid rgba(255,71,87,.12);border-radius:12px;padding:14px 16px;font-size:11px;color:var(--muted);line-height:1.6;text-align:center;margin-top:8px}
+.ebox{background:var(--s1);border:1px solid rgba(255,71,87,.3);border-radius:14px;padding:28px;text-align:center}
+.et{font-size:15px;font-weight:600;color:var(--red);margin-bottom:8px}
+.em{font-size:11px;color:var(--muted);margin-bottom:14px}
+.rbtn{background:var(--accent);color:#07090f;border:none;padding:10px 24px;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">⚡</div>
+    <div class="logo-name">Scout<span>AI</span></div>
+  </div>
+  <div class="date-pill" id="dp">—</div>
+</header>
+
+<div class="screen active" id="sHome">
+  <div class="wrap">
+    <div class="eyebrow">Ligas disponibles</div>
+    <div class="lscroll">
+      <div class="chip active" data-l="all" onclick="fL(this)">Todas</div>
+      <div class="chip" data-l="mundial" onclick="fL(this)">🌍 Mundial</div>
+      <div class="chip" data-l="libertadores" onclick="fL(this)">🌎 Libertadores</div>
+      <div class="chip" data-l="betplay" onclick="fL(this)">🇨🇴 BetPlay</div>
+      <div class="chip" data-l="nba" onclick="fL(this)">🏀 NBA</div>
+    </div>
+    <div class="eyebrow">Partidos de hoy</div>
+    <div class="nota">📡 Junio 2026 · Mundial FIFA 2026 en curso · Toca un partido para analizarlo</div>
+    <div class="mlist" id="mc"></div>
+  </div>
+</div>
+
+<div class="screen" id="sAnalysis">
+  <div class="wrap">
+    <button class="bbtn" onclick="goHome()">← Volver a partidos</button>
+    <div id="ac"></div>
+  </div>
+</div>
+
+<script>
+const MATCHES=[
+  {id:"w1",league:"Copa Mundial FIFA 2026",home:"Uruguay",away:"Canadá",time:"12:00",homeForm:"W-W-D-W-W",awayForm:"D-W-W-L-D",context:"Grupo C · Jornada 1"},
+  {id:"w2",league:"Copa Mundial FIFA 2026",home:"Portugal",away:"Marruecos",time:"15:00",homeForm:"W-W-W-D-W",awayForm:"W-D-W-W-L",context:"Grupo H · Duelo de estilos"},
+  {id:"w3",league:"Copa Mundial FIFA 2026",home:"Francia",away:"México",time:"18:00",homeForm:"W-W-D-W-W",awayForm:"L-W-D-W-L",context:"Grupo E"},
+  {id:"w4",league:"Copa Mundial FIFA 2026",home:"España",away:"Nigeria",time:"21:00",homeForm:"W-W-W-W-D",awayForm:"W-D-L-W-W",context:"Grupo B"},
+  {id:"l1",league:"Copa Libertadores",home:"Flamengo",away:"Boca Juniors",time:"19:00",homeForm:"W-W-D-W-L",awayForm:"W-W-W-D-W",context:"Octavos · Ida"},
+  {id:"l2",league:"Copa Libertadores",home:"River Plate",away:"Nacional",time:"21:30",homeForm:"W-D-W-W-W",awayForm:"D-W-L-D-W",context:"Octavos · Ida"},
+  {id:"b1",league:"Liga BetPlay",home:"Millonarios",away:"Atlético Nacional",time:"17:30",homeForm:"W-D-W-L-W",awayForm:"W-W-D-W-D",context:"Clásico colombiano"},
+  {id:"b2",league:"Liga BetPlay",home:"América de Cali",away:"Junior",time:"20:00",homeForm:"D-W-W-D-W",awayForm:"W-L-W-W-D",context:"Por el liderato"},
+  {id:"n1",league:"NBA Finals 2026",home:"Boston Celtics",away:"OKC Thunder",time:"20:00",homeForm:"W-W-L-W-W",awayForm:"W-W-W-L-W",context:"Finals · Game 5"},
+];
+
+const today=new Date();
+document.getElementById('dp').textContent=today.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
+let allM=[...MATCHES],activeL='all',currentMatch=null;
+window.addEventListener('DOMContentLoaded',()=>renderM(allM));
+
+function fb(f,r){
+  const c={W:'rgba(0,196,140,.2)',D:'rgba(255,211,42,.2)',L:'rgba(255,71,87,.2)'};
+  const t={W:'var(--green)',D:'var(--yellow)',L:'var(--red)'};
+  return `<div class="fbs${r?' r':''}">${f.split('-').map(x=>`<div class="fb ${x.trim()}" style="background:${c[x.trim()]||'#1a2333'};color:${t[x.trim()]||'#fff'}">${x.trim()}</div>`).join('')}</div>`;
+}
+
+function renderM(list){
+  const f=activeL==='all'?list:list.filter(m=>m.league.toLowerCase().includes(activeL));
+  document.getElementById('mc').innerHTML=f.map(m=>`
+    <div class="mc" onclick='startAnalysis(${JSON.stringify(m)})'>
+      <div class="ctop"><span class="cl">${m.league}</span><span class="ct">${m.time}</span></div>
+      <div class="cteams">
+        <div class="cteam"><div class="tnm">${m.home}</div>${fb(m.homeForm)}</div>
+        <div class="cct">VS</div>
+        <div class="cteam away"><div class="tnm">${m.away}</div>${fb(m.awayForm,true)}</div>
+      </div>
+      <div class="cf2">${m.context?`<span class="ctag">💡 ${m.context}</span>`:''}<span class="ahint">Analizar ⚡</span></div>
+    </div>`).join('');
+}
+
+function fL(el){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');activeL=el.dataset.l;renderM(allM);
+}
+
+function startAnalysis(m){
+  currentMatch=m;
+  document.getElementById('sHome').classList.remove('active');
+  document.getElementById('sAnalysis').classList.add('active');
+  window.scrollTo(0,0);
+  const ac=document.getElementById('ac');
+  ac.innerHTML=`<div class="ald">
+    <div class="spin"></div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:4px">${m.home} vs ${m.away}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Analizando con IA...</div>
+    <div class="lss">
+      ${['Evaluando estadísticas','Analizando forma reciente','Calculando probabilidades','Detectando value bets','Generando predicción'].map((t,i)=>`<div class="ls" id="ls${i}"><div class="ld"></div>${t}</div>`).join('')}
+    </div>
+  </div>`;
+  let si=0;
+  const iv=setInterval(()=>{
+    if(si>0){const p=document.getElementById('ls'+(si-1));if(p)p.className='ls d';}
+    if(si<5){const c=document.getElementById('ls'+si);if(c)c.className='ls a';}
+    si++;if(si>5)clearInterval(iv);
+  },800);
+  fetchAnalysis(m,iv);
+}
+
+async function fetchAnalysis(m,iv){
+  try{
+    const r=await fetch('/api/analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({home:m.home,away:m.away,league:m.league})
+    });
+    const data=await r.json();
+    clearInterval(iv);
+    for(let i=0;i<5;i++){const e=document.getElementById('ls'+i);if(e)e.className='ls d';}
+    await new Promise(r=>setTimeout(r,300));
+    if(data.error)throw new Error(data.error);
+    renderA(parseR(data.result),m);
+  }catch(e){
+    clearInterval(iv);
+    document.getElementById('ac').innerHTML=`
+      <div class="ebox">
+        <div class="et">Error en el análisis</div>
+        <div class="em">${e.message}</div>
+        <button class="rbtn" onclick="startAnalysis(currentMatch)">🔄 Reintentar</button>
+      </div>`;
+  }
+}
+
+function parseR(text){
+  const g=(k)=>{const m=text.match(new RegExp(k+':\\s*(.+)','i'));return m?m[1].trim():null;};
+  const n=(k,d=0)=>{const v=g(k);return v?parseFloat(v)||d:d;};
+  return{
+    pick:g('PICK')||'Local',conf:n('CONF',65),
+    summary:g('SUMMARY')||'Análisis basado en estadísticas.',
+    ph:n('PH',45),pd:n('PD',27),pa:n('PA',28),
+    oh:n('OH',2.0),od:n('OD',3.3),oa:n('OA',3.8),
+    hform:g('HFORM')||'W-D-W-L-W',hgf:n('HGF',1.5),hga:n('HGA',1.1),
+    hrec:g('HREC')||'—',hinj:g('HINJ')||'OK',hpos:g('HPOS')||'—',
+    aform:g('AFORM')||'W-D-L-W-D',agf:n('AGF',1.2),aga:n('AGA',1.3),
+    arec:g('AREC')||'—',ainj:g('AINJ')||'OK',apos:g('APOS')||'—',
+    h2n:n('H2N',5),h2hw:n('H2HW',2),h2d:n('H2D',1),h2aw:n('H2AW',2),h2last:g('H2LAST')||'—',
+    btts:n('BTTS',52),o25:n('O25',55),u25:n('U25',45),cs:g('CS')||'1-1',fg:g('FG')||'—',
+    analysis:g('ANALYSIS')||'Partido competido.',
+    f1:g('F1')||'Factor 1',f1t:g('F1T')||'pos',
+    f2:g('F2')||'Factor 2',f2t:g('F2T')||'neg',
+    f3:g('F3')||'Factor 3',f3t:g('F3T')||'neu',
+    f4:g('F4')||'Factor 4',f4t:g('F4T')||'pos',
+    f5:g('F5')||'Factor 5',f5t:g('F5T')||'neu',
+    vex:(g('VEX')||'no').toLowerCase()==='yes',
+    vbet:g('VBET')||'—',vop:n('VOP',0),vmp:n('VMP',0),
+    vmo:n('VMO',0),vedge:n('VEDGE',0),vk:n('VK',0),
+    vv:g('VV')||'Sin value bet claro.',
+  };
+}
+
+function imp(o){return o?Math.round(100/o)+'%':'—';}
+function fi(t){return t==='pos'?'↑':t==='neg'?'↓':'→';}
+function fc(t){return t==='pos'?'var(--green)':t==='neg'?'var(--red)':'var(--yellow)';}
+function fbg(t){return t==='pos'?'rgba(0,196,140,.15)':t==='neg'?'rgba(255,71,87,.15)':'rgba(255,211,42,.15)';}
+
+function fbr2(form){
+  if(!form)return '—';
+  const c={W:'rgba(0,196,140,.2)',D:'rgba(255,211,42,.2)',L:'rgba(255,71,87,.2)'};
+  const t={W:'var(--green)',D:'var(--yellow)',L:'var(--red)'};
+  return `<div class="fbs">${form.split('-').map(f=>`<div class="fb" style="background:${c[f.trim()]||'#1a2333'};color:${t[f.trim()]||'#fff'}">${f.trim()}</div>`).join('')}</div>`;
+}
+
+function sr(l,v,cl='var(--text)'){
+  return `<div class="sr"><span class="sl2">${l}</span><span class="sv" style="color:${cl};text-align:right;max-width:55%">${v}</span></div>`;
+}
+
+function renderA(d,m){
+  const vbSection=d.vex?`
+    <div class="vbelt">
+      <div class="vbt">💰 Value Bet detectado</div>
+      <div class="vbr"><span class="vbl">Apuesta</span><span class="vbv">${d.vbet}</span></div>
+      <div class="vbr"><span class="vbl">Prob. IA</span><span class="vbv">${d.vop}%</span></div>
+      <div class="vbr"><span class="vbl">Prob. mercado</span><span class="vbv" style="color:var(--text)">${d.vmp}%</span></div>
+      <div class="vbr"><span class="vbl">Cuota</span><span class="vbv" style="color:var(--text)">${d.vmo}</span></div>
+      <div class="vbr"><span class="vbl">Edge</span><span class="vbv" style="color:var(--accent)">+${d.vedge}%</span></div>
+      <div class="vbr"><span class="vbl">Kelly</span><span class="vbv" style="color:var(--yellow)">${d.vk}% bankroll</span></div>
+      <div style="margin-top:10px;font-size:12px;color:#7a9ab8">${d.vv}</div>
+    </div>`:'' ;
+
+  document.getElementById('ac').innerHTML=`
+    <div class="rb rmh">
+      <div class="rln">⚡ ${m.league}</div>
+      <div class="rts2">
+        <div style="text-align:center"><div class="rtn">${m.home}</div><div class="rtsub">🏠 Local</div></div>
+        <div class="rvs">VS</div>
+        <div style="text-align:center"><div class="rtn">${m.away}</div><div class="rtsub">✈️ Visit.</div></div>
+      </div>
+      <div class="ostrip">
+        <div class="op"><div class="ol2">Local</div><div class="ov" style="color:var(--accent)">${d.oh}</div><div class="oi">${imp(d.oh)}</div></div>
+        <div class="op"><div class="ol2">Empate</div><div class="ov" style="color:var(--yellow)">${d.od}</div><div class="oi">${imp(d.od)}</div></div>
+        <div class="op"><div class="ol2">Visit.</div><div class="ov" style="color:var(--accent2)">${d.oa}</div><div class="oi">${imp(d.oa)}</div></div>
+      </div>
+    </div>
+
+    <div class="reco">
+      <div class="rl">🎯 Recomendación IA</div>
+      <div class="rpick">${d.pick}</div>
+      <div class="rwhy">${d.summary}</div>
+      <div class="cbar"><div class="cfill" id="cf"></div></div>
+      <div class="cmeta"><span>Confianza</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600">${d.conf}%</span></div>
+    </div>
+
+    ${vbSection}
+
+    <div class="rb">
+      <div class="re">📊 Probabilidades</div>
+      <div class="pr2"><div class="ph2"><span class="pn">${m.home}</span><span class="pp" style="color:var(--accent)">${d.ph}%</span></div><div class="pt"><div class="pf pfh" id="ph"></div></div></div>
+      <div class="pr2" style="margin-top:10px"><div class="ph2"><span class="pn">Empate</span><span class="pp" style="color:var(--yellow)">${d.pd}%</span></div><div class="pt"><div class="pf pfd" id="pd"></div></div></div>
+      <div class="pr2" style="margin-top:10px"><div class="ph2"><span class="pn">${m.away}</span><span class="pp" style="color:var(--accent2)">${d.pa}%</span></div><div class="pt"><div class="pf pfa" id="pa"></div></div></div>
+    </div>
+
+    <div class="s2c">
+      <div class="rb" style="margin-bottom:0">
+        <div class="re">${m.home}</div>
+        ${fbr2(d.hform)}
+        ${sr('Goles/p',d.hgf,'var(--green)')}
+        ${sr('Concedidos',d.hga,'var(--red)')}
+        ${sr('Récord',d.hrec,'var(--accent)')}
+        ${sr('Posición',d.hpos)}
+        ${sr('Plantilla',d.hinj,'var(--muted)')}
+      </div>
+      <div class="rb" style="margin-bottom:0">
+        <div class="re">${m.away}</div>
+        ${fbr2(d.aform)}
+        ${sr('Goles/p',d.agf,'var(--green)')}
+        ${sr('Concedidos',d.aga,'var(--red)')}
+        ${sr('Récord',d.arec,'var(--accent)')}
+        ${sr('Posición',d.apos)}
+        ${sr('Plantilla',d.ainj,'var(--muted)')}
+      </div>
+      <div class="rb" style="margin-bottom:0">
+        <div class="re">🤜 H2H</div>
+        ${sr('Partidos',d.h2n,'var(--accent)')}
+        ${sr('Vic. '+m.home,d.h2hw,'var(--green)')}
+        ${sr('Empates',d.h2d,'var(--yellow)')}
+        ${sr('Vic. '+m.away,d.h2aw,'var(--accent2)')}
+        ${sr('Último',d.h2last,'var(--muted)')}
+      </div>
+      <div class="rb" style="margin-bottom:0">
+        <div class="re">💡 Mercados</div>
+        ${sr('Ambos anotan',d.btts+'%','var(--green)')}
+        ${sr('+2.5 goles',d.o25+'%','var(--accent)')}
+        ${sr('-2.5 goles',d.u25+'%','var(--yellow)')}
+        ${sr('Marcador',d.cs,'var(--accent2)')}
+        ${sr('1er goleador',d.fg,'var(--muted)')}
+      </div>
+    </div>
+
+    <div class="rb">
+      <div class="re">🧠 Análisis</div>
+      <div class="at">${d.analysis}</div>
+    </div>
+
+    <div class="rb">
+      <div class="re">🔑 Factores clave</div>
+      ${[[d.f1,d.f1t],[d.f2,d.f2t],[d.f3,d.f3t],[d.f4,d.f4t],[d.f5,d.f5t]].map(([t,tp])=>`
+        <div class="fi">
+          <div class="fic ${tp}" style="background:${fbg(tp)};color:${fc(tp)}">${fi(tp)}</div>
+          <span>${t}</span>
+        </div>`).join('')}
+    </div>
+
+    <div class="disc">⚠️ <strong>ScoutAI es análisis estadístico, no garantía.</strong> Toda apuesta implica riesgo económico. Juega responsablemente.</div>`;
+
+  requestAnimationFrame(()=>setTimeout(()=>{
+    const cf=document.getElementById('cf');if(cf)cf.style.width=d.conf+'%';
+    const ph=document.getElementById('ph');if(ph)ph.style.width=d.ph+'%';
+    const pd=document.getElementById('pd');if(pd)pd.style.width=d.pd+'%';
+    const pa=document.getElementById('pa');if(pa)pa.style.width=d.pa+'%';
+  },150));
+}
+
+function goHome(){
+  document.getElementById('sAnalysis').classList.remove('active');
+  document.getElementById('sHome').classList.add('active');
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
