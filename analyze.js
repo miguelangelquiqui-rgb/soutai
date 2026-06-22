@@ -4,6 +4,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
   const { home, away, league } = req.body;
   if (!home || !away) return res.status(400).json({ error: 'Missing data' });
 
@@ -51,6 +52,16 @@ O25: probabilidad más de 2.5 goles en %
 U25: probabilidad menos de 2.5 goles en %
 CS: marcador más probable
 FG: primer goleador más probable
+CORNERS_H: promedio corners local por partido
+CORNERS_A: promedio corners visitante por partido
+CORNERS_TOTAL: total corners esperados en el partido
+CORNERS_PICK: apuesta corners recomendada
+CARDS_H: promedio tarjetas local por partido
+CARDS_A: promedio tarjetas visitante por partido
+CARDS_TOTAL: total tarjetas esperadas
+CARDS_PICK: apuesta tarjetas recomendada
+PENALTY_PROB: probabilidad de que haya penal en %
+HT_PICK: resultado más probable al descanso
 ANALYSIS: 3 oraciones de análisis profundo en español con contexto táctico, estadístico y motivacional
 F1: factor clave 1 en español
 F1T: pos
@@ -81,7 +92,7 @@ VV: veredicto final en una oración en español`;
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1200,
+        max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: prompt }]
       })
