@@ -7,8 +7,9 @@ export default async function handler(req, res) {
   const today = new Date().toISOString().split('T')[0];
 
   try {
+    // Football category ID = 1 in SportAPI
     const response = await fetch(
-      `https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/${today}`,
+      `https://sportapi7.p.rapidapi.com/api/v1/category/1/scheduled-events/${today}`,
       {
         headers: {
           'x-rapidapi-key': process.env.RAPIDAPI_KEY,
@@ -17,72 +18,69 @@ export default async function handler(req, res) {
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`SportAPI error: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
 
     const data = await response.json();
     const events = data.events || [];
 
-    // Filter top leagues
+    // Top league names to filter
     const topLeagues = [
-      'UEFA Champions League',
-      'UEFA Europa League', 
-      'Premier League',
-      'LaLiga',
-      'Bundesliga',
-      'Serie A',
-      'Ligue 1',
-      'Copa Libertadores',
-      'Copa Sudamericana',
-      'Liga BetPlay',
-      'FIFA World Cup',
-      'MLS',
-      'NBA'
+      'uefa champions league','uefa europa league',
+      'premier league','laliga','la liga',
+      'bundesliga','serie a','ligue 1',
+      'copa libertadores','copa sudamericana',
+      'liga betplay','betplay',
+      'fifa world cup','world cup',
+      'mls','eredivisie','primeira liga'
     ];
 
-    const matches = events
+    const filtered = events
       .filter(e => {
-        const league = e.tournament?.name || '';
-        return topLeagues.some(l => league.toLowerCase().includes(l.toLowerCase()));
+        const league = (e.tournament?.name || '').toLowerCase();
+        return topLeagues.some(l => league.includes(l));
       })
-      .slice(0, 15)
-      .map(e => {
-        const startTime = new Date(e.startTimestamp * 1000);
-        const hours = startTime.toLocaleTimeString('es-CO', { 
-          hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' 
-        });
-        
-        const status = e.status?.type;
-        let matchStatus = 'upcoming';
-        let score = null;
-        
-        if (status === 'inprogress') {
-          matchStatus = 'live';
-          score = `${e.homeScore?.current || 0}-${e.awayScore?.current || 0}`;
-        } else if (status === 'finished') {
-          matchStatus = 'finished';
-          score = `${e.homeScore?.current || 0}-${e.awayScore?.current || 0}`;
-        }
+      .slice(0, 20);
 
-        return {
-          id: String(e.id),
-          league: e.tournament?.name || 'Liga',
-          sport: 'football',
-          home: e.homeTeam?.name || 'Local',
-          away: e.awayTeam?.name || 'Visitante',
-          time: hours,
-          status: matchStatus,
-          score,
-          homeForm: 'W-D-W-L-W',
-          awayForm: 'W-W-D-L-D',
-          context: e.tournament?.category?.name || ''
-        };
+    if (!filtered.length) throw new Error('No top league matches today');
+
+    const matches = filtered.map(e => {
+      const ts = e.startTimestamp;
+      const date = new Date(ts * 1000);
+      const time = date.toLocaleTimeString('es-CO', {
+        hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
       });
 
-    res.status(200).json({ matches });
+      const statusType = e.status?.type;
+      let matchStatus = 'upcoming';
+      let score = null;
+
+      if (statusType === 'inprogress') {
+        matchStatus = 'live';
+        score = `${e.homeScore?.current ?? 0}-${e.awayScore?.current ?? 0}`;
+      } else if (statusType === 'finished') {
+        matchStatus = 'finished';
+        score = `${e.homeScore?.current ?? 0}-${e.awayScore?.current ?? 0}`;
+      }
+
+      return {
+        id: String(e.id),
+        league: e.tournament?.name || 'Liga',
+        sport: 'football',
+        home: e.homeTeam?.name || 'Local',
+        away: e.awayTeam?.name || 'Visitante',
+        time,
+        status: matchStatus,
+        score,
+        homeForm: 'W-D-W-L-W',
+        awayForm: 'W-W-D-L-D',
+        context: e.roundInfo?.name || e.tournament?.category?.name || ''
+      };
+    });
+
+    res.status(200).json({ matches, source: 'live' });
+
   } catch (error) {
-    // Fallback to hardcoded matches if API fails
+    // Fallback
     res.status(200).json({
       matches: [
         {id:"w1",league:"Copa Mundial FIFA 2026",sport:"football",home:"Uruguay",away:"Canadá",time:"12:00",status:"upcoming",score:null,homeForm:"W-W-D-W-W",awayForm:"D-W-W-L-D",context:"Grupo C"},
@@ -93,7 +91,8 @@ export default async function handler(req, res) {
         {id:"b1",league:"Liga BetPlay",sport:"football",home:"Millonarios",away:"Atlético Nacional",time:"17:30",status:"upcoming",score:null,homeForm:"W-D-W-L-W",awayForm:"W-W-D-W-D",context:"Clásico"},
         {id:"n1",league:"NBA Finals 2026",sport:"basketball",home:"Boston Celtics",away:"OKC Thunder",time:"20:00",status:"upcoming",score:null,homeForm:"W-W-L-W-W",awayForm:"W-W-W-L-W",context:"Game 5"}
       ],
-      source: 'fallback'
+      source: 'fallback',
+      error: error.message
     });
   }
 }
