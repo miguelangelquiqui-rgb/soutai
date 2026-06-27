@@ -13,8 +13,7 @@ export default async function handler(req, res) {
         method: 'GET',
         headers: {
           'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-          'x-rapidapi-host': 'sportapi7.p.rapidapi.com',
-          'Content-Type': 'application/json'
+          'x-rapidapi-host': 'sportapi7.p.rapidapi.com'
         }
       }
     );
@@ -23,22 +22,14 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     const events = data.events || [];
+    if (!events.length) throw new Error('No events from API');
 
-    if (!events.length) throw new Error('No events');
+    // Sort by start time and take top 20
+    const sorted = events
+      .sort((a, b) => (a.startTimestamp || 0) - (b.startTimestamp || 0))
+      .slice(0, 20);
 
-    const topLeagues = [
-      'premier league','laliga','la liga','bundesliga',
-      'serie a','ligue 1','champions league','europa league',
-      'copa libertadores','copa sudamericana','betplay',
-      'world cup','copa mundial','mls','eredivisie'
-    ];
-
-    const filtered = events.filter(e => {
-      const name = (e.tournament?.name || '').toLowerCase();
-      return topLeagues.some(l => name.includes(l));
-    }).slice(0, 20);
-
-    const list = (filtered.length ? filtered : events.slice(0, 15)).map(e => {
+    const matches = sorted.map(e => {
       const date = new Date((e.startTimestamp || 0) * 1000);
       const time = date.toLocaleTimeString('es-CO', {
         hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
@@ -65,7 +56,7 @@ export default async function handler(req, res) {
       };
     });
 
-    res.status(200).json({ matches: list, source: 'live', total: events.length });
+    res.status(200).json({ matches, source: 'live', total: events.length });
 
   } catch (error) {
     res.status(200).json({
