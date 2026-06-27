@@ -4,16 +4,20 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2,'0');
+  const month = String(today.getMonth()+1).padStart(2,'0');
+  const year = today.getFullYear();
+  const dateStr = `${day}.${month}.${year}`;
 
   try {
     const response = await fetch(
-      `https://sportapi7.p.rapidapi.com/api/v1/category/1/scheduled-events/${today}`,
+      `https://free-api-live-football-data.p.rapidapi.com/football-get-matches-by-date?date=${day+month+year}`,
       {
         method: 'GET',
         headers: {
           'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-          'x-rapidapi-host': 'sportapi7.p.rapidapi.com'
+          'x-rapidapi-host': 'free-api-live-football-data.p.rapidapi.com'
         }
       }
     );
@@ -21,42 +25,40 @@ export default async function handler(req, res) {
     if (!response.ok) throw new Error(`API ${response.status}`);
 
     const data = await response.json();
-    const events = data.events || [];
-    if (!events.length) throw new Error('No events from API');
+    const items = data?.response?.matches || [];
+    if (!items.length) throw new Error('No matches');
 
-    // Sort by start time and take top 20
-    const sorted = events
-      .sort((a, b) => (a.startTimestamp || 0) - (b.startTimestamp || 0))
-      .slice(0, 20);
+    const matches = items.slice(0, 20).map((m, i) => {
+      const timeRaw = m.time || '';
+      const timeParts = timeRaw.split(' ');
+      const timeOnly = timeParts[1] || timeRaw;
 
-    const matches = sorted.map(e => {
-      const date = new Date((e.startTimestamp || 0) * 1000);
-      const time = date.toLocaleTimeString('es-CO', {
-        hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
-      });
-      const st = e.status?.type;
       let status = 'upcoming', score = null;
-      if (st === 'inprogress') {
+      const hs = m.home?.score ?? 0;
+      const as = m.away?.score ?? 0;
+      if (m.status === 'live' || m.status === 'inprogress') {
         status = 'live';
-        score = `${e.homeScore?.current ?? 0}-${e.awayScore?.current ?? 0}`;
-      } else if (st === 'finished') {
+        score = `${hs}-${as}`;
+      } else if (m.status === 'finished' || m.status === 'ft') {
         status = 'finished';
-        score = `${e.homeScore?.current ?? 0}-${e.awayScore?.current ?? 0}`;
+        score = `${hs}-${as}`;
       }
+
       return {
-        id: String(e.id),
-        league: e.tournament?.name || 'Liga',
+        id: String(m.id || i),
+        league: m.league?.name || m.leagueName || 'Liga',
         sport: 'football',
-        home: e.homeTeam?.name || 'Local',
-        away: e.awayTeam?.name || 'Visitante',
-        time, status, score,
+        home: m.home?.name || m.home?.longName || 'Local',
+        away: m.away?.name || m.away?.longName || 'Visitante',
+        time: timeOnly,
+        status, score,
         homeForm: 'W-D-W-L-W',
         awayForm: 'W-W-D-L-D',
-        context: e.roundInfo?.name || e.tournament?.category?.name || ''
+        context: m.round || m.league?.country || ''
       };
     });
 
-    res.status(200).json({ matches, source: 'live', total: events.length });
+    res.status(200).json({ matches, source: 'live', total: items.length });
 
   } catch (error) {
     res.status(200).json({
