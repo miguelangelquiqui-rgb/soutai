@@ -352,7 +352,7 @@ function parseR(text){
     const matches = raw.match(/\b[WDL]\b/g);
     return matches ? matches.slice(0,5).join('-') : null;
   };
-  return{
+  const r = {
     pick:g('PICK')||'Local',conf:n('CONF',65),
     summary:g('SUMMARY')||'Análisis basado en estadísticas.',
     ph:n('PH',45),pd:n('PD',27),pa:n('PA',28),
@@ -363,8 +363,8 @@ function parseR(text){
     arec:g('AREC')||'—',ainj:g('AINJ')||'OK',apos:g('APOS')||'—',
     h2n:n('H2N',5),h2hw:n('H2HW',2),h2d:n('H2D',1),h2aw:n('H2AW',2),h2last:g('H2LAST')||'—',
     btts:n('BTTS',52),o25:n('O25',55),u25:n('U25',45),cs:g('CS')||'1-1',fg:g('FG')||'—',
-    cornersH:n('CORNERS_H',5),cornersA:n('CORNERS_A',4),cornersTotal:n('CORNERS_TOTAL',9),cornersPick:g('CORNERS_PICK')||'—',
-    cardsH:n('CARDS_H',2),cardsA:n('CARDS_A',2),cardsTotal:n('CARDS_TOTAL',4),cardsPick:g('CARDS_PICK')||'—',
+    cornersH:n('CORNERS_H',5),cornersA:n('CORNERS_A',4),cornersTotal:n('CORNERS_TOTAL',9),cornersPick:g('CORNERS_PICK')||null,
+    cardsH:n('CARDS_H',2),cardsA:n('CARDS_A',2),cardsTotal:n('CARDS_TOTAL',4),cardsPick:g('CARDS_PICK')||null,
     penaltyProb:n('PENALTY_PROB',22),htPick:g('HT_PICK')||'—',
     analysis:g('ANALYSIS')||'Partido competido.',
     f1:g('F1')||'Factor 1',f1t:g('F1T')||'pos',
@@ -377,6 +377,10 @@ function parseR(text){
     vmo:n('VMO',0),vedge:n('VEDGE',0),vk:n('VK',0),
     vv:g('VV')||'Sin value bet claro.',
   };
+  // Auto-calculate picks if Claude didn't provide them
+  if(!r.cornersPick) r.cornersPick = r.cornersTotal >= 9 ? `Over ${r.cornersTotal-0.5}` : `Under ${r.cornersTotal+0.5}`;
+  if(!r.cardsPick) r.cardsPick = r.cardsTotal >= 4 ? `Over ${r.cardsTotal-0.5}` : `Under ${r.cardsTotal+0.5}`;
+  return r;
 }
 
 function imp(o){return o?Math.round(100/o)+'%':'—';}
