@@ -35,7 +35,7 @@ body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-ser
 .lbadge{background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.4);color:var(--red);font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:1.5px;animation:lp 1.5s infinite}
 .cteams{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .cteam{flex:1}.cteam.away{text-align:right}
-.tnm{font-size:15px;font-weight:700}
+.tnm{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cct{text-align:center;flex-shrink:0;font-size:11px;color:var(--muted2);font-weight:700;letter-spacing:2px}
 .cscore{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;color:var(--accent);letter-spacing:2px}
 .fbs{display:flex;gap:3px;margin-top:5px}
@@ -65,7 +65,7 @@ body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-ser
 .rmh{text-align:center;padding:24px 20px}
 .rln{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
 .rts2{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
-.rtn{font-size:clamp(17px,4vw,26px);font-weight:700}
+.rtn{font-size:clamp(17px,4vw,26px);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw}
 .rtsub{font-size:11px;color:var(--muted);margin-top:3px}
 .rvs{font-size:10px;color:var(--muted2);font-weight:700;letter-spacing:3px;padding:6px 12px;border:1px solid var(--border);border-radius:6px}
 .ostrip{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
@@ -111,6 +111,56 @@ body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-ser
 .specials{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
 .spec-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px}
 .spec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+
+/* ── Mobile responsive ── */
+@media(max-width:520px){
+  .header{padding:10px 14px}
+  .logo-name{font-size:15px}
+  .date-pill{font-size:10px;padding:4px 10px}
+  .wrap{padding:16px 12px 50px}
+  .eyebrow{font-size:10px;letter-spacing:1.5px;margin-bottom:10px}
+  .chip{padding:5px 11px;font-size:11px}
+  .mc{padding:14px 14px;border-radius:12px}
+  .cl{font-size:10px;letter-spacing:.5px}
+  .ct{font-size:11px}
+  .lbadge{font-size:8px;padding:2px 6px}
+  .tnm{font-size:13px}
+  .cscore{font-size:18px}
+  .cteams{gap:8px}
+  .fb{width:16px;height:16px;font-size:7px}
+  .cf2{margin-top:8px}
+  .ctag{font-size:9px;padding:2px 7px}
+  .ahint{font-size:10px}
+  /* Analysis screen */
+  .rtn{font-size:17px!important}
+  .rtsub{font-size:10px}
+  .rvs{font-size:9px;padding:4px 8px}
+  .ostrip{gap:6px}
+  .op{padding:8px 10px;min-width:70px}
+  .ov{font-size:16px}
+  .ol2{font-size:8px}
+  .oi{font-size:8px}
+  .reco{padding:16px}
+  .rpick{font-size:20px}
+  .rwhy{font-size:12px;line-height:1.6}
+  .specials{grid-template-columns:1fr;gap:10px}
+  .spec-card{padding:12px}
+  .rb{padding:14px;border-radius:12px}
+  .re{font-size:9px;letter-spacing:1.5px;margin-bottom:10px}
+  .sr{font-size:11px;padding:6px 0}
+  .sv{font-size:11px}
+  .at{font-size:12px;line-height:1.7}
+  .fi{font-size:11px;padding:6px 0}
+  .fic{width:16px;height:16px;font-size:8px}
+  .vbelt{padding:14px}
+  .vbr{font-size:11px}
+  .pr2 .ph2{font-size:11px}
+  .disc{font-size:10px;padding:12px}
+  .ebox{padding:20px}
+  .et{font-size:14px}
+  .bbtn{font-size:12px}
+  .cmeta{font-size:9px}
+}
 </style>
 </head>
 <body>
