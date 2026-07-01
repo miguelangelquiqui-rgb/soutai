@@ -85,12 +85,20 @@ export default async function handler(req, res) {
             const homeRec = home.records?.[0]?.summary || '';
             const awayRec = away.records?.[0]?.summary || '';
 
+            const homeName = home.team?.displayName || '';
+            const awayName = away.team?.displayName || '';
+            // Skip TBD/placeholder matches
+            if(!homeName || !awayName || 
+               homeName.includes('Winner') || awayName.includes('Winner') ||
+               homeName.includes('TBD') || awayName.includes('TBD') ||
+               homeName.includes('Loser') || awayName.includes('Loser')) return;
+
             allMatches.push({
               id: String(e.id),
               league: LEAGUE_NAMES[league] || e.name || league,
               sport: 'football',
-              home: home.team?.displayName || 'Local',
-              away: away.team?.displayName || 'Visitante',
+              home: homeName,
+              away: awayName,
               homeLogo: home.team?.logo || '',
               awayLogo: away.team?.logo || '',
               time,
