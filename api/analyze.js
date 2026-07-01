@@ -127,16 +127,16 @@ O25: prob +2.5 goles %
 U25: prob -2.5 goles %
 CS: marcador más probable
 FG: primer goleador probable
-CORNERS_H: corners promedio local
-CORNERS_A: corners promedio visitante
-CORNERS_TOTAL: total corners esperado
-CORNERS_PICK: predicción corners
-CARDS_H: tarjetas promedio local
-CARDS_A: tarjetas promedio visitante
-CARDS_TOTAL: total tarjetas esperado
-CARDS_PICK: predicción tarjetas
-PENALTY_PROB: probabilidad penal %
-HT_PICK: resultado medio tiempo
+CORNERS_H: corners promedio local (número)
+CORNERS_A: corners promedio visitante (número)
+CORNERS_TOTAL: total corners esperado (número)
+CORNERS_PICK: predicción corners en texto (ej: Over 9.5 o Under 8.5)
+CARDS_H: tarjetas promedio local (número)
+CARDS_A: tarjetas promedio visitante (número)
+CARDS_TOTAL: total tarjetas esperado (número)
+CARDS_PICK: predicción tarjetas en texto (ej: Over 4.5 o Under 3.5)
+PENALTY_PROB: probabilidad penal % (número)
+HT_PICK: resultado medio tiempo en texto (ej: USA gana o Empate)
 ANALYSIS: 3-4 oraciones análisis táctico en español con datos reales verificados
 F1: factor clave 1 español
 F1T: pos o neg o neu
