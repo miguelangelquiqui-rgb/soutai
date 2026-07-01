@@ -402,10 +402,17 @@ function parseR(text){
     vmo:n('VMO',0),vedge:n('VEDGE',0),vk:n('VK',0),
     vv:g('VV')||'Sin value bet claro.',
   };
-  // Auto-calculate picks if Claude didn't provide useful values
-  const empty = v => !v || v === '—' || v === 'N/D' || v === '-' || v.length < 3;
-  if(empty(r.cornersPick)) r.cornersPick = r.cornersTotal >= 9 ? `Over ${r.cornersTotal-0.5}` : `Under ${r.cornersTotal+0.5}`;
-  if(empty(r.cardsPick)) r.cardsPick = r.cardsTotal >= 4 ? `Over ${r.cardsTotal-0.5}` : `Under ${r.cardsTotal+0.5}`;
+  // Auto-calculate picks — always calculate, only keep Claude's if it contains Over/Under
+  const autoPick = (val, total, threshold) => {
+    if (val && (val.toLowerCase().includes('over') || val.toLowerCase().includes('under'))) return val;
+    return total >= threshold ? `Over ${(total - 0.5).toFixed(1)}` : `Under ${(total + 0.5).toFixed(1)}`;
+  };
+  r.cornersPick = autoPick(r.cornersPick, r.cornersTotal, 9);
+  r.cardsPick = autoPick(r.cardsPick, r.cardsTotal, 4);
+  // Auto-calc HT pick if missing
+  if (!r.htPick || r.htPick === '—' || r.htPick === 'N/D' || r.htPick.length < 3) {
+    r.htPick = r.ph > r.pa ? 'Local gana' : r.pa > r.ph ? 'Visitante gana' : 'Empate';
+  }
   return r;
 }
 
