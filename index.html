@@ -377,9 +377,10 @@ function parseR(text){
     vmo:n('VMO',0),vedge:n('VEDGE',0),vk:n('VK',0),
     vv:g('VV')||'Sin value bet claro.',
   };
-  // Auto-calculate picks if Claude didn't provide them
-  if(!r.cornersPick) r.cornersPick = r.cornersTotal >= 9 ? `Over ${r.cornersTotal-0.5}` : `Under ${r.cornersTotal+0.5}`;
-  if(!r.cardsPick) r.cardsPick = r.cardsTotal >= 4 ? `Over ${r.cardsTotal-0.5}` : `Under ${r.cardsTotal+0.5}`;
+  // Auto-calculate picks if Claude didn't provide useful values
+  const empty = v => !v || v === '—' || v === 'N/D' || v === '-' || v.length < 3;
+  if(empty(r.cornersPick)) r.cornersPick = r.cornersTotal >= 9 ? `Over ${r.cornersTotal-0.5}` : `Under ${r.cornersTotal+0.5}`;
+  if(empty(r.cardsPick)) r.cardsPick = r.cardsTotal >= 4 ? `Over ${r.cardsTotal-0.5}` : `Under ${r.cardsTotal+0.5}`;
   return r;
 }
 
