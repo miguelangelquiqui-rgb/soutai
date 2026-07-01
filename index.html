@@ -269,7 +269,7 @@ function startAnalysis(m){
 
 async function fetchAnalysis(m,iv){
   try{
-    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home:m.home,away:m.away,league:m.league,leagueSlug:m.leagueSlug||'',homeRecord:m.homeRecord||'',awayRecord:m.awayRecord||''})});
+    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home:m.home,away:m.away,league:m.league,leagueSlug:m.leagueSlug||'',homeRecord:m.homeRecord||'',awayRecord:m.awayRecord||'',status:m.status||'upcoming',score:m.score||null,context:m.context||''})});
     const data=await r.json();
     clearInterval(iv);
     for(let i=0;i<5;i++){const e=document.getElementById('ls'+i);if(e)e.className='ls d';}
