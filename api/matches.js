@@ -47,7 +47,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // All calls in parallel with 4s timeout each
     const results = await Promise.allSettled(
       fetchJobs.map(job => fetchLeague(job))
     );
@@ -55,12 +54,9 @@ export default async function handler(req, res) {
     const allMatches = [];
     for (const r of results) {
       if (r.status !== 'fulfilled') continue;
-      for (const m of r.value) {
-        allMatches.push(m);
-      }
+      for (const m of r.value) allMatches.push(m);
     }
 
-    // Sort: live first, then by date+time
     allMatches.sort((a, b) => {
       if (a.status === 'live' && b.status !== 'live') return -1;
       if (b.status === 'live' && a.status !== 'live') return 1;
@@ -68,22 +64,12 @@ export default async function handler(req, res) {
     });
 
     if (allMatches.length > 0) {
-      return res.status(200).json({
-        matches: allMatches,
-        source: 'espn',
-        total: allMatches.length
-      });
+      return res.status(200).json({ matches: allMatches, source: 'espn', total: allMatches.length });
     }
-
     throw new Error('No ESPN matches found');
 
   } catch (error) {
-    return res.status(200).json({
-      matches: [],
-      source: 'fallback',
-      error: error.message,
-      total: 0
-    });
+    return res.status(200).json({ matches: [], source: 'fallback', error: error.message, total: 0 });
   }
 
   async function fetchLeague({ league, dateStr, dateISO, dateLabel }) {
@@ -128,8 +114,7 @@ export default async function handler(req, res) {
         if (e.date) {
           try {
             time = new Date(e.date).toLocaleTimeString('es-CO', {
-              hour: '2-digit', minute: '2-digit',
-              timeZone: 'America/Bogota'
+              hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
             });
           } catch {}
         }
@@ -137,14 +122,15 @@ export default async function handler(req, res) {
         parsed.push({
           id: String(e.id),
           league: LEAGUE_NAMES[league] || league,
+          leagueSlug: league,
           sport: 'football',
           home: homeName,
           away: awayName,
+          homeId: home.team?.id || '',
+          awayId: away.team?.id || '',
           homeLogo: home.team?.logo || '',
           awayLogo: away.team?.logo || '',
-          time,
-          date: dateISO,
-          dateLabel,
+          time, date: dateISO, dateLabel,
           status, score,
           homeRecord: home.records?.[0]?.summary || '',
           awayRecord: away.records?.[0]?.summary || '',
