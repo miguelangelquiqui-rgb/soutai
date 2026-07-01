@@ -137,9 +137,9 @@ body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-ser
       <div class="chip" data-l="serie" onclick="fL(this)">🇮🇹 Serie A</div>
       <div class="chip" data-l="nba" onclick="fL(this)">🏀 NBA</div>
     </div>
-    <div class="eyebrow">Partidos de hoy</div>
+    <div class="eyebrow" id="matchesEyebrow">Próximos partidos · 7 días</div>
 
-    <div class="nota" id="sourceNota">📡 Cargando partidos del día...</div>
+    <div class="nota" id="sourceNota">📡 Cargando partidos...</div>
     <div id="mc">
       <div class="loading-matches">
         <div class="dotl"><span></span><span></span><span></span></div>
@@ -169,7 +169,7 @@ async function loadMatches() {
     const r = await fetch('/api/matches');
     const data = await r.json();
     allM = data.matches || [];
-    const src = data.source === 'fallback' ? '📋 Partidos de referencia · Activa API para datos en tiempo real' : '📡 Partidos en tiempo real · SportAPI';
+    const src = data.source === 'fallback' ? '📋 Partidos de referencia · Activa API para datos en tiempo real' : '📡 Partidos en tiempo real · Próximos 7 días · SportAPI';
     document.getElementById('sourceNota').textContent = src;
     renderM(allM);
   } catch(e) {
@@ -185,14 +185,29 @@ function fb(f,r){
   return `<div class="fbs${r?' r':''}">${f.split('-').map(x=>`<div class="fb ${x.trim()}" style="background:${c[x.trim()]||'#1a2333'};color:${t[x.trim()]||'#fff'}">${x.trim()}</div>`).join('')}</div>`;
 }
 
+// League display names for friendly empty-state messaging
+const LEAGUE_NAMES = {
+  mundial:'el Mundial', champions:'la Champions League', premier:'la Premier League',
+  laliga:'LaLiga', libertadores:'la Libertadores', betplay:'BetPlay Dimayor',
+  bundesliga:'la Bundesliga', serie:'la Serie A', nba:'la NBA'
+};
+
 function renderM(list){
   const f = activeL==='all' ? list : list.filter(m=>m.league.toLowerCase().includes(activeL.toLowerCase()));
+
   if(!f.length){
-    document.getElementById('mc').innerHTML=`<div class="ebox" style="padding:24px"><div class="et">Sin partidos en esta liga</div><div class="em" style="margin-top:8px">Prueba con "Todas" o revisa otra fecha</div></div>`;
+    const nombreLiga = LEAGUE_NAMES[activeL] || 'esta liga';
+    const msg = activeL==='all'
+      ? 'No hay partidos programados en los próximos 7 días.'
+      : `Sin partidos de ${nombreLiga} programados en los próximos 7 días.`;
+    document.getElementById('mc').innerHTML=`<div class="ebox" style="padding:24px">
+      <div class="et" style="color:var(--yellow)">Sin partidos en esta ventana</div>
+      <div class="em" style="margin-top:8px">${msg}<br>Puede estar en receso o su próxima fecha cae fuera del rango de 7 días. Prueba con "Todas" para ver otras ligas activas.</div>
+    </div>`;
     return;
   }
 
-  // Group by date
+  // Group by date across the full 7-day window (not just "today")
   const groups = {};
   f.forEach(m=>{
     const key = m.dateLabel || 'Hoy';
