@@ -300,6 +300,10 @@ VV: explicación español`;
     }
 
     if (!resultText.trim()) throw new Error('Empty AI response');
+
+    // Strip markdown formatting from Claude's response
+    resultText = resultText.replace(/\*\*/g, '').replace(/\*/g, '').replace(/__/g, '');
+
     return res.status(200).json({
       result: resultText.trim(),
       source: 'live',
