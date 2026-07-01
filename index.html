@@ -227,7 +227,7 @@ function renderM(list){
     html += matches.map(m=>{
       const live=m.status==='live', fin=m.status==='finished';
       const enc=encodeURIComponent(JSON.stringify(m));
-      return `<div class="mc${live?' live':''}" onclick="startAnalysis(JSON.parse(decodeURIComponent('${enc}')))" style="margin-bottom:10px">
+      return `<div class="mc${live?' live':''}" ${!live?`onclick="startAnalysis(JSON.parse(decodeURIComponent('${enc}')))"`:''} style="margin-bottom:10px${live?';cursor:default':''}">
         <div class="ctop">
           <span class="cl">${m.league}</span>
           ${live?`<span class="lbadge">EN VIVO${m.clock?' · '+m.clock:''}</span>`:fin?'<span style="font-size:10px;color:var(--muted);font-weight:600">FINALIZADO</span>':`<span class="ct">${m.time}</span>`}
@@ -237,7 +237,7 @@ function renderM(list){
           <div class="cct">${m.score?`<div class="cscore">${m.score}</div>`:'VS'}</div>
           <div class="cteam away"><div class="tnm">${m.away}</div>${fb(m.awayForm,true)}</div>
         </div>
-        <div class="cf2">${m.context?`<span class="ctag">💡 ${m.context}</span>`:''}<span class="ahint">Analizar ⚡</span></div>
+        <div class="cf2">${m.context?`<span class="ctag">💡 ${m.context}</span>`:''}${live?'<span style="margin-left:auto;font-size:11px;color:var(--red);font-weight:600">⏱️ En curso</span>':`<span class="ahint">Analizar ⚡</span>`}</div>
       </div>`;
     }).join('');
   });
