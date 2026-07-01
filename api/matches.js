@@ -100,14 +100,21 @@ export default async function handler(req, res) {
           homeName.includes('TBD') || awayName.includes('TBD') ||
           homeName.includes('Loser') || awayName.includes('Loser')) continue;
 
-        const statusType = e.status?.type?.name || '';
+        const statusState = e.status?.type?.state || '';
+        const statusDetail = e.status?.type?.detail || '';
         let status = 'upcoming', score = null;
-        if (statusType.includes('PROGRESS') || statusType.includes('HALFTIME')) {
+        if (statusState === 'in') {
           status = 'live';
           score = `${home.score || 0}-${away.score || 0}`;
-        } else if (statusType.includes('FINAL') || statusType.includes('FULL_TIME')) {
+        } else if (statusState === 'post') {
           status = 'finished';
           score = `${home.score || 0}-${away.score || 0}`;
+        }
+
+        // Clock for live matches
+        let clock = '';
+        if (status === 'live') {
+          clock = e.status?.displayClock || statusDetail || '';
         }
 
         let time = '—';
@@ -131,7 +138,7 @@ export default async function handler(req, res) {
           homeLogo: home.team?.logo || '',
           awayLogo: away.team?.logo || '',
           time, date: dateISO, dateLabel,
-          status, score,
+          status, score, clock,
           homeRecord: home.records?.[0]?.summary || '',
           awayRecord: away.records?.[0]?.summary || '',
           context: comp.notes?.[0]?.headline || ''
