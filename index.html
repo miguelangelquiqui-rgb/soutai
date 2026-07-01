@@ -169,7 +169,7 @@ async function loadMatches() {
     const r = await fetch('/api/matches');
     const data = await r.json();
     allM = data.matches || [];
-    const src = data.source === 'fallback' ? '📋 Partidos de referencia · Activa API para datos en tiempo real' : '📡 Partidos en tiempo real · Próximos 7 días · SportAPI';
+    const src = data.source === 'fallback' ? '📋 Sin partidos disponibles · ESPN no devolvió resultados' : `📡 ${data.total} partidos en tiempo real · ESPN · Próximos 7 días`;
     document.getElementById('sourceNota').textContent = src;
     renderM(allM);
   } catch(e) {
@@ -251,11 +251,11 @@ function startAnalysis(m){
   document.getElementById('sHome').classList.remove('active');
   document.getElementById('sAnalysis').classList.add('active');
   window.scrollTo(0,0);
-  const steps=['Evaluando estadísticas','Analizando forma reciente','Calculando probabilidades','Detectando value bets','Generando predicción'];
+  const steps=['Consultando posición en tabla (ESPN)','Buscando forma reciente y lesiones','Analizando historial H2H','Calculando probabilidades con IA','Generando predicción final'];
   document.getElementById('ac').innerHTML=`<div class="ald">
     <div class="spin"></div>
     <div style="font-size:14px;font-weight:600;margin-bottom:4px">${m.home} vs ${m.away}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Analizando con IA profesional...</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Analizando con datos reales + IA...</div>
     <div class="lss">${steps.map((t,i)=>`<div class="ls" id="ls${i}"><div class="ld"></div>${t}</div>`).join('')}</div>
   </div>`;
   let si=0;
@@ -269,7 +269,7 @@ function startAnalysis(m){
 
 async function fetchAnalysis(m,iv){
   try{
-    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home:m.home,away:m.away,league:m.league})});
+    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home:m.home,away:m.away,league:m.league,leagueSlug:m.leagueSlug||'',homeRecord:m.homeRecord||'',awayRecord:m.awayRecord||''})});
     const data=await r.json();
     clearInterval(iv);
     for(let i=0;i<5;i++){const e=document.getElementById('ls'+i);if(e)e.className='ls d';}
@@ -452,7 +452,7 @@ function renderA(d,m){
         </div>`).join('')}
     </div>
 
-    <div class="disc">⚠️ <strong>ScoutAI es análisis estadístico, no garantía de resultados.</strong> Toda apuesta implica riesgo económico. Gestiona tu bankroll con responsabilidad.</div>`;
+    <div class="disc">⚠️ <strong>ScoutAI usa datos reales de ESPN + búsqueda web para sus análisis.</strong> Es análisis estadístico, no garantía de resultados. Toda decisión es responsabilidad del usuario.</div>`;
 
   requestAnimationFrame(()=>setTimeout(()=>{
     const cf=document.getElementById('cf');if(cf)cf.style.width=d.conf+'%';;
