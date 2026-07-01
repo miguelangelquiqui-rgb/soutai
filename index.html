@@ -342,6 +342,8 @@ async function fetchAnalysis(m,iv){
 }
 
 function parseR(text){
+  // Strip markdown formatting
+  text = text.replace(/\*\*/g, '').replace(/\*/g, '').replace(/__/g, '').replace(/_/g, '');
   const g=(k)=>{const m=text.match(new RegExp(k+':\\s*(.+)','i'));return m?m[1].trim():null;};
   const n=(k,d=0)=>{const v=g(k);return v?parseFloat(v)||d:d;};
   // Clean form: extract only W, D, L characters and join with -
