@@ -162,7 +162,11 @@ document.getElementById('dp').textContent = today.toLocaleDateString('es-CO',{da
 
 let allM=[], activeL='all', currentMatch=null;
 
-window.addEventListener('DOMContentLoaded', loadMatches);
+window.addEventListener('DOMContentLoaded', () => {
+  loadMatches();
+  // Auto-refresh every 60 seconds for live scores
+  setInterval(loadMatches, 60000);
+});
 
 async function loadMatches() {
   try {
@@ -226,7 +230,7 @@ function renderM(list){
       return `<div class="mc${live?' live':''}" onclick="startAnalysis(JSON.parse(decodeURIComponent('${enc}')))" style="margin-bottom:10px">
         <div class="ctop">
           <span class="cl">${m.league}</span>
-          ${live?'<span class="lbadge">EN VIVO</span>':fin?'<span style="font-size:10px;color:var(--muted);font-weight:600">FINALIZADO</span>':`<span class="ct">${m.time}</span>`}
+          ${live?`<span class="lbadge">EN VIVO${m.clock?' · '+m.clock:''}</span>`:fin?'<span style="font-size:10px;color:var(--muted);font-weight:600">FINALIZADO</span>':`<span class="ct">${m.time}</span>`}
         </div>
         <div class="cteams">
           <div class="cteam"><div class="tnm">${m.home}</div>${fb(m.homeForm)}</div>
