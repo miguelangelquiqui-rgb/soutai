@@ -8,8 +8,12 @@ export default async function handler(req, res) {
   const { home, away, league, leagueSlug, homeRecord, awayRecord, status, score, context } = req.body;
   if (!home || !away) return res.status(400).json({ error: 'Missing teams' });
 
-  // ── Step 1: Fetch real standings from ESPN ──
-  let standingsData = '';
+  // ═══════════════════════════════════════════
+  // STEP 1: Fetch ESPN standings → real stats
+  // ═══════════════════════════════════════════
+  let homeStats = null, awayStats = null, leagueAvg = null;
+  let standingsText = '';
+
   if (leagueSlug) {
     try {
       const sr = await fetch(
@@ -19,15 +23,28 @@ export default async function handler(req, res) {
       if (sr.ok) {
         const sd = await sr.json();
         const entries = [];
-        const children = sd.children || [];
-        for (const group of children) {
-          const standings = group.standings?.entries || [];
-          for (const entry of standings) entries.push(entry);
+        for (const group of (sd.children || [])) {
+          for (const entry of (group.standings?.entries || [])) entries.push(entry);
         }
         if (!entries.length) {
-          const direct = sd.standings?.entries || [];
-          for (const entry of direct) entries.push(entry);
+          for (const entry of (sd.standings?.entries || [])) entries.push(entry);
         }
+
+        const parseEntry = (entry) => {
+          const s = {};
+          (entry.stats || []).forEach(st => { s[st.name] = parseFloat(st.value || st.displayValue) || 0; });
+          return {
+            name: entry.team?.displayName || '',
+            pos: s.rank || 0,
+            wins: s.wins || 0,
+            draws: s.ties || 0,
+            losses: s.losses || 0,
+            gf: s.pointsFor || s.goalsFor || 0,
+            ga: s.pointsAgainst || s.goalsAgainst || 0,
+            pts: s.points || 0,
+            gp: (s.wins || 0) + (s.ties || 0) + (s.losses || 0)
+          };
+        };
 
         const findTeam = (name) => {
           return entries.find(e => {
@@ -37,107 +54,202 @@ export default async function handler(req, res) {
           });
         };
 
-        const homeTeam = findTeam(home);
-        const awayTeam = findTeam(away);
+        const homeEntry = findTeam(home);
+        const awayEntry = findTeam(away);
+        if (homeEntry) homeStats = parseEntry(homeEntry);
+        if (awayEntry) awayStats = parseEntry(awayEntry);
 
-        const extractStats = (entry, label) => {
-          if (!entry) return `${label}: Sin datos de tabla disponibles`;
-          const s = {};
-          (entry.stats || []).forEach(st => { s[st.name] = st.value || st.displayValue || 0; });
-          const pos = entry.stats?.find(st => st.name === 'rank')?.value || '?';
-          return `${label}: Pos ${pos}, ${s.wins||0}W-${s.ties||0}D-${s.losses||0}L, GF:${s.pointsFor||s.goalsFor||0} GA:${s.pointsAgainst||s.goalsAgainst||0}, Pts:${s.points||0}`;
-        };
+        // League averages from all teams
+        if (entries.length > 0) {
+          let totalGF = 0, totalGP = 0;
+          entries.forEach(e => {
+            const p = parseEntry(e);
+            totalGF += p.gf;
+            totalGP += p.gp;
+          });
+          leagueAvg = totalGP > 0 ? totalGF / totalGP : 1.3;
+        }
 
-        standingsData = `\n\nDATOS REALES DE TABLA (${league}):\n${extractStats(homeTeam, home)}\n${extractStats(awayTeam, away)}`;
+        const fmt = (s, label) => s
+          ? `${label}: Pos ${s.pos}, ${s.wins}W-${s.draws}D-${s.losses}L, GF:${s.gf} GA:${s.ga}, Pts:${s.pts}, ${s.gp} partidos`
+          : `${label}: Sin datos de tabla`;
+
+        standingsText = `\n\nDATOS REALES DE TABLA (${league}):\n${fmt(homeStats, home)}\n${fmt(awayStats, away)}\nPromedio goles/partido liga: ${leagueAvg ? leagueAvg.toFixed(2) : 'N/D'}`;
       }
     } catch {}
   }
 
-  // Records from scoreboard
-  let recordsData = '';
-  if (homeRecord || awayRecord) {
-    recordsData = `\nRÉCORD TEMPORADA: ${home}: ${homeRecord || 'N/A'} | ${away}: ${awayRecord || 'N/A'}`;
+  // ═══════════════════════════════════════════
+  // STEP 2: Poisson model → math probabilities
+  // ═══════════════════════════════════════════
+  let poissonText = '';
+  let poissonData = null;
+
+  if (homeStats && awayStats && leagueAvg && homeStats.gp >= 2 && awayStats.gp >= 2) {
+    const avgGoals = leagueAvg || 1.3;
+
+    // Attack & defense strengths
+    const homeAttack = (homeStats.gf / homeStats.gp) / avgGoals;
+    const homeDefense = (homeStats.ga / homeStats.gp) / avgGoals;
+    const awayAttack = (awayStats.gf / awayStats.gp) / avgGoals;
+    const awayDefense = (awayStats.ga / awayStats.gp) / avgGoals;
+
+    // Expected goals (with home advantage factor 1.15)
+    const homeXG = homeAttack * awayDefense * avgGoals * 1.15;
+    const awayXG = awayAttack * homeDefense * avgGoals * 0.85;
+
+    // Poisson probability function
+    const poisson = (lambda, k) => {
+      let f = 1;
+      for (let i = 1; i <= k; i++) f *= i;
+      return (Math.pow(lambda, k) * Math.exp(-lambda)) / f;
+    };
+
+    // Calculate score matrix (0-0 to 6-6)
+    let homeWin = 0, draw = 0, awayWin = 0;
+    let btts = 0, over25 = 0, under25 = 0;
+    const scores = [];
+
+    for (let h = 0; h <= 6; h++) {
+      for (let a = 0; a <= 6; a++) {
+        const p = poisson(homeXG, h) * poisson(awayXG, a);
+        if (h > a) homeWin += p;
+        else if (h === a) draw += p;
+        else awayWin += p;
+        if (h > 0 && a > 0) btts += p;
+        if (h + a > 2) over25 += p;
+        if (h + a < 3) under25 += p;
+        scores.push({ h, a, p });
+      }
+    }
+
+    // Normalize
+    const total = homeWin + draw + awayWin;
+    homeWin = (homeWin / total * 100);
+    draw = (draw / total * 100);
+    awayWin = (awayWin / total * 100);
+    btts = btts / total * 100;
+    over25 = over25 / total * 100;
+    under25 = under25 / total * 100;
+
+    // Most probable score
+    scores.sort((a, b) => b.p - a.p);
+    const topScore = scores[0];
+
+    // Fair odds (no margin)
+    const homeOdds = (100 / homeWin).toFixed(2);
+    const drawOdds = (100 / draw).toFixed(2);
+    const awayOdds = (100 / awayWin).toFixed(2);
+
+    poissonData = {
+      homeXG: homeXG.toFixed(2),
+      awayXG: awayXG.toFixed(2),
+      homeWin: homeWin.toFixed(1),
+      draw: draw.toFixed(1),
+      awayWin: awayWin.toFixed(1),
+      homeOdds, drawOdds, awayOdds,
+      btts: btts.toFixed(1),
+      over25: over25.toFixed(1),
+      under25: under25.toFixed(1),
+      topScore: `${topScore.h}-${topScore.a}`,
+      topScoreProb: (topScore.p / total * 100).toFixed(1)
+    };
+
+    poissonText = `\n\n═══ MODELO POISSON (datos matemáticos verificados) ═══
+xG Local (${home}): ${poissonData.homeXG} goles esperados
+xG Visitante (${away}): ${poissonData.awayXG} goles esperados
+Fuerza ataque local: ${homeAttack.toFixed(2)} | Fuerza defensa local: ${homeDefense.toFixed(2)}
+Fuerza ataque visitante: ${awayAttack.toFixed(2)} | Fuerza defensa visitante: ${awayDefense.toFixed(2)}
+Factor localía aplicado: 1.15x ataque local, 0.85x ataque visitante
+
+PROBABILIDADES POISSON:
+Victoria ${home}: ${poissonData.homeWin}% (cuota justa: ${homeOdds})
+Empate: ${poissonData.draw}% (cuota justa: ${drawOdds})
+Victoria ${away}: ${poissonData.awayWin}% (cuota justa: ${awayOdds})
+Ambos anotan: ${poissonData.btts}%
+Más de 2.5 goles: ${poissonData.over25}%
+Menos de 2.5 goles: ${poissonData.under25}%
+Marcador más probable: ${poissonData.topScore} (${poissonData.topScoreProb}%)
+
+IMPORTANTE: Estos son tus datos BASE. Puedes ajustar ±5% máximo por factores cualitativos (lesiones, motivación, H2H). Justifica cada ajuste.`;
   }
 
-  // Live match context
+  // ═══════════════════════════════════════════
+  // STEP 3: Live match context
+  // ═══════════════════════════════════════════
   let liveContext = '';
   if (status === 'live' && score) {
-    liveContext = `\n\n⚠️ PARTIDO EN VIVO — MARCADOR ACTUAL: ${home} ${score} ${away}
-Este partido está EN CURSO. Tu análisis DEBE considerar el marcador actual.
-- Analiza quién tiene más probabilidad de ganar DESDE ESTE PUNTO del partido
-- Ajusta todas las probabilidades al estado actual del juego
-- Si un equipo va perdiendo, refleja eso en las probabilidades
-- Indica cómo podría cambiar el resultado desde el marcador actual`;
+    liveContext = `\n\n⚠️ PARTIDO EN VIVO — MARCADOR: ${home} ${score} ${away}
+Ajusta análisis al estado actual del juego.`;
   } else if (status === 'finished' && score) {
-    liveContext = `\n\n✅ PARTIDO FINALIZADO — RESULTADO: ${home} ${score} ${away}
-Analiza el resultado final, qué pasó y por qué.`;
+    liveContext = `\n\n✅ FINALIZADO — RESULTADO: ${home} ${score} ${away}
+Analiza el resultado final.`;
   }
 
-  // Context (e.g. "Round of 32", "Dieciseisavos")
-  let contextData = '';
-  if (context) {
-    contextData = `\nCONTEXTO: ${context}`;
-  }
+  let contextData = context ? `\nCONTEXTO: ${context}` : '';
+  let recordsData = (homeRecord || awayRecord) ? `\nRÉCORD: ${home}: ${homeRecord || 'N/A'} | ${away}: ${awayRecord || 'N/A'}` : '';
 
-  // ── Step 2: Build prompt ──
+  // ═══════════════════════════════════════════
+  // STEP 4: Build prompt with Poisson + search
+  // ═══════════════════════════════════════════
   const today = new Date().toISOString().split('T')[0];
-  const prompt = `Eres un analista deportivo profesional con acceso a datos en tiempo real. Analiza este partido con la mayor precisión posible.
+
+  const prompt = `Eres un analista deportivo profesional. Tienes un modelo estadístico Poisson ya calculado — ÚSALO como base para tus probabilidades.
 
 PARTIDO: ${home} vs ${away}
 COMPETICIÓN: ${league}${contextData}
 FECHA: ${today}
 ESTADO: ${status === 'live' ? 'EN VIVO' : status === 'finished' ? 'FINALIZADO' : 'POR JUGAR'}${score ? `\nMARCADOR: ${score}` : ''}
-${standingsData}${recordsData}${liveContext}
+${standingsText}${recordsData}${poissonText}${liveContext}
 
-INSTRUCCIONES CRÍTICAS:
-- Busca en internet información ACTUAL sobre este partido: forma reciente (últimos 5 partidos reales), lesiones confirmadas, alineaciones si están disponibles, historial H2H, y noticias del día
-- Si el partido está EN VIVO, el marcador actual es lo MÁS IMPORTANTE — ajusta todo a la realidad del juego
-- Basa TODAS las probabilidades en datos verificados, no inventes cifras
-- Si no encuentras un dato, pon "N/D" en vez de inventar
-- Responde SOLO con líneas etiquetadas, sin texto adicional ni explicaciones fuera del formato
+INSTRUCCIONES:
+- ${poissonData ? 'USA las probabilidades del modelo Poisson como BASE. Solo ajusta ±5% máximo con justificación (lesiones clave, sanciones, motivación extrema, H2H reciente)' : 'No hay datos suficientes para Poisson. Calcula tus propias probabilidades buscando datos reales en internet'}
+- Busca en internet: forma reciente real (últimos 5 partidos con resultados), lesiones/bajas confirmadas HOY, alineación probable si está disponible, historial H2H últimos 5 partidos
+- Si no encuentras un dato, escribe N/D — NUNCA inventes
+- Responde SOLO con líneas etiquetadas
 
 PICK: equipo ganador o Empate
-CONF: número 1-100
-SUMMARY: 2 oraciones en español con datos concretos verificados
-PH: probabilidad local %
-PD: probabilidad empate %
-PA: probabilidad visitante %
-OH: cuota implícita local
-OD: cuota implícita empate
-OA: cuota implícita visitante
-HFORM: últimos 5 resultados reales W-D-L
-HGF: goles por partido promedio
+CONF: 1-100 (basado en solidez de datos)
+SUMMARY: 2 oraciones español con datos verificados
+PH: prob local % ${poissonData ? `(Poisson: ${poissonData.homeWin}%, ajusta si tienes razón)` : ''}
+PD: prob empate % ${poissonData ? `(Poisson: ${poissonData.draw}%)` : ''}
+PA: prob visitante % ${poissonData ? `(Poisson: ${poissonData.awayWin}%)` : ''}
+OH: cuota justa local ${poissonData ? `(Poisson: ${poissonData.homeOdds})` : ''}
+OD: cuota justa empate ${poissonData ? `(Poisson: ${poissonData.drawOdds})` : ''}
+OA: cuota justa visitante ${poissonData ? `(Poisson: ${poissonData.awayOdds})` : ''}
+HFORM: últimos 5 reales W-D-L (solo letras separadas por guion)
+HGF: goles/partido promedio
 HGA: goles concedidos promedio
 HREC: récord temporada
-HINJ: lesiones/bajas confirmadas o N/D
-HPOS: posición en tabla
-AFORM: últimos 5 resultados reales W-D-L
-AGF: goles por partido promedio
+HINJ: lesiones confirmadas o N/D
+HPOS: posición tabla
+AFORM: últimos 5 reales W-D-L (solo letras separadas por guion)
+AGF: goles/partido promedio
 AGA: goles concedidos promedio
 AREC: récord temporada
-AINJ: lesiones/bajas confirmadas o N/D
-APOS: posición en tabla
-H2N: enfrentamientos directos recientes
+AINJ: lesiones confirmadas o N/D
+APOS: posición tabla
+H2N: partidos H2H recientes
 H2HW: victorias local H2H
 H2D: empates H2H
 H2AW: victorias visitante H2H
-H2LAST: último resultado H2H
-BTTS: prob ambos anotan %
-O25: prob +2.5 goles %
-U25: prob -2.5 goles %
-CS: marcador más probable
+H2LAST: último H2H resultado
+BTTS: prob ambos anotan % ${poissonData ? `(Poisson: ${poissonData.btts}%)` : ''}
+O25: prob +2.5 goles % ${poissonData ? `(Poisson: ${poissonData.over25}%)` : ''}
+U25: prob -2.5 goles % ${poissonData ? `(Poisson: ${poissonData.under25}%)` : ''}
+CS: marcador más probable ${poissonData ? `(Poisson: ${poissonData.topScore})` : ''}
 FG: primer goleador probable
 CORNERS_H: corners promedio local (número)
 CORNERS_A: corners promedio visitante (número)
-CORNERS_TOTAL: total corners esperado (número)
-CORNERS_PICK: predicción corners en texto (ej: Over 9.5 o Under 8.5)
+CORNERS_TOTAL: total esperado (número)
+CORNERS_PICK: predicción en texto (ej: Over 9.5)
 CARDS_H: tarjetas promedio local (número)
 CARDS_A: tarjetas promedio visitante (número)
-CARDS_TOTAL: total tarjetas esperado (número)
-CARDS_PICK: predicción tarjetas en texto (ej: Over 4.5 o Under 3.5)
-PENALTY_PROB: probabilidad penal % (número)
-HT_PICK: resultado medio tiempo en texto (ej: USA gana o Empate)
-ANALYSIS: 3-4 oraciones análisis táctico en español con datos reales verificados
+CARDS_TOTAL: total esperado (número)
+CARDS_PICK: predicción en texto (ej: Over 4.5)
+PENALTY_PROB: prob penal % (número)
+HT_PICK: resultado medio tiempo en texto
+ANALYSIS: 3-4 oraciones análisis táctico español con datos reales. Si usaste Poisson, menciona los xG y cualquier ajuste que hiciste
 F1: factor clave 1 español
 F1T: pos o neg o neu
 F2: factor clave 2
@@ -149,15 +261,17 @@ F4T: pos o neg o neu
 F5: factor clave 5
 F5T: pos o neg o neu
 VEX: yes o no
-VBET: descripción value bet
-VOP: prob real según análisis %
-VMP: prob implícita mercado %
+VBET: descripción
+VOP: prob real %
+VMP: prob mercado %
 VMO: cuota mercado
 VEDGE: ventaja %
-VK: porcentaje Kelly
-VV: explicación value en español`;
+VK: Kelly %
+VV: explicación español`;
 
-  // ── Step 3: Call Claude with web search ──
+  // ═══════════════════════════════════════════
+  // STEP 5: Call Claude with web search
+  // ═══════════════════════════════════════════
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -169,9 +283,7 @@ VV: explicación value en español`;
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1500,
-        tools: [
-          { type: 'web_search_20250305', name: 'web_search' }
-        ],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -184,13 +296,16 @@ VV: explicación value en español`;
     const data = await response.json();
     let resultText = '';
     for (const block of (data.content || [])) {
-      if (block.type === 'text' && block.text) {
-        resultText += block.text + '\n';
-      }
+      if (block.type === 'text' && block.text) resultText += block.text + '\n';
     }
 
     if (!resultText.trim()) throw new Error('Empty AI response');
-    return res.status(200).json({ result: resultText.trim(), source: 'live' });
+    return res.status(200).json({
+      result: resultText.trim(),
+      source: 'live',
+      model: poissonData ? 'poisson+ai' : 'ai-only',
+      poisson: poissonData || null
+    });
 
   } catch (error) {
     return res.status(500).json({ error: error.message });
