@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const { home, away, league, leagueSlug, homeRecord, awayRecord } = req.body;
+  const { home, away, league, leagueSlug, homeRecord, awayRecord, status, score, context } = req.body;
   if (!home || !away) return res.status(400).json({ error: 'Missing teams' });
 
   // ── Step 1: Fetch real standings from ESPN ──
@@ -22,11 +22,8 @@ export default async function handler(req, res) {
         const children = sd.children || [];
         for (const group of children) {
           const standings = group.standings?.entries || [];
-          for (const entry of standings) {
-            entries.push(entry);
-          }
+          for (const entry of standings) entries.push(entry);
         }
-        // If no children, try direct standings
         if (!entries.length) {
           const direct = sd.standings?.entries || [];
           for (const entry of direct) entries.push(entry);
@@ -56,57 +53,78 @@ export default async function handler(req, res) {
     } catch {}
   }
 
-  // Add records from scoreboard if available
+  // Records from scoreboard
   let recordsData = '';
   if (homeRecord || awayRecord) {
     recordsData = `\nRÉCORD TEMPORADA: ${home}: ${homeRecord || 'N/A'} | ${away}: ${awayRecord || 'N/A'}`;
   }
 
-  // ── Step 2: Build prompt with real data + web search ──
+  // Live match context
+  let liveContext = '';
+  if (status === 'live' && score) {
+    liveContext = `\n\n⚠️ PARTIDO EN VIVO — MARCADOR ACTUAL: ${home} ${score} ${away}
+Este partido está EN CURSO. Tu análisis DEBE considerar el marcador actual.
+- Analiza quién tiene más probabilidad de ganar DESDE ESTE PUNTO del partido
+- Ajusta todas las probabilidades al estado actual del juego
+- Si un equipo va perdiendo, refleja eso en las probabilidades
+- Indica cómo podría cambiar el resultado desde el marcador actual`;
+  } else if (status === 'finished' && score) {
+    liveContext = `\n\n✅ PARTIDO FINALIZADO — RESULTADO: ${home} ${score} ${away}
+Analiza el resultado final, qué pasó y por qué.`;
+  }
+
+  // Context (e.g. "Round of 32", "Dieciseisavos")
+  let contextData = '';
+  if (context) {
+    contextData = `\nCONTEXTO: ${context}`;
+  }
+
+  // ── Step 2: Build prompt ──
   const today = new Date().toISOString().split('T')[0];
-  const prompt = `Eres un analista deportivo profesional. Analiza este partido con la mayor precisión posible.
+  const prompt = `Eres un analista deportivo profesional con acceso a datos en tiempo real. Analiza este partido con la mayor precisión posible.
 
 PARTIDO: ${home} vs ${away}
-COMPETICIÓN: ${league}
+COMPETICIÓN: ${league}${contextData}
 FECHA: ${today}
-${standingsData}${recordsData}
+ESTADO: ${status === 'live' ? 'EN VIVO' : status === 'finished' ? 'FINALIZADO' : 'POR JUGAR'}${score ? `\nMARCADOR: ${score}` : ''}
+${standingsData}${recordsData}${liveContext}
 
-INSTRUCCIONES:
-- Usa los datos reales proporcionados arriba como base
-- Busca en internet información ACTUAL sobre: forma reciente de ambos equipos (últimos 5 partidos), lesiones y bajas confirmadas, historial de enfrentamientos directos (H2H), contexto del partido (eliminatoria, fase de grupos, etc.), y noticias recientes relevantes
-- Basa tus probabilidades en datos REALES, no inventes
-- Si no encuentras datos específicos, indícalo honestamente
-- Responde SOLO con las líneas etiquetadas, sin texto adicional
+INSTRUCCIONES CRÍTICAS:
+- Busca en internet información ACTUAL sobre este partido: forma reciente (últimos 5 partidos reales), lesiones confirmadas, alineaciones si están disponibles, historial H2H, y noticias del día
+- Si el partido está EN VIVO, el marcador actual es lo MÁS IMPORTANTE — ajusta todo a la realidad del juego
+- Basa TODAS las probabilidades en datos verificados, no inventes cifras
+- Si no encuentras un dato, pon "N/D" en vez de inventar
+- Responde SOLO con líneas etiquetadas, sin texto adicional ni explicaciones fuera del formato
 
 PICK: equipo ganador o Empate
-CONF: número 1-100 (confianza real basada en datos)
-SUMMARY: 2 oraciones en español explicando la predicción con datos concretos
-PH: probabilidad local % (basada en datos reales)
+CONF: número 1-100
+SUMMARY: 2 oraciones en español con datos concretos verificados
+PH: probabilidad local %
 PD: probabilidad empate %
 PA: probabilidad visitante %
 OH: cuota implícita local
 OD: cuota implícita empate
 OA: cuota implícita visitante
-HFORM: últimos 5 resultados reales del local (W-D-L formato)
-HGF: goles por partido promedio real del local
-HGA: goles concedidos promedio real del local
-HREC: récord real de la temporada (ej: 8W-3D-2L)
-HINJ: lesiones/bajas confirmadas del local
-HPOS: posición real en la tabla
-AFORM: últimos 5 resultados reales del visitante
-AGF: goles por partido promedio real del visitante
-AGA: goles concedidos promedio real del visitante
-AREC: récord real de la temporada
-AINJ: lesiones/bajas confirmadas del visitante
-APOS: posición real en la tabla
-H2N: número de enfrentamientos directos recientes
-H2HW: victorias del local en H2H
-H2D: empates en H2H
-H2AW: victorias del visitante en H2H
+HFORM: últimos 5 resultados reales W-D-L
+HGF: goles por partido promedio
+HGA: goles concedidos promedio
+HREC: récord temporada
+HINJ: lesiones/bajas confirmadas o N/D
+HPOS: posición en tabla
+AFORM: últimos 5 resultados reales W-D-L
+AGF: goles por partido promedio
+AGA: goles concedidos promedio
+AREC: récord temporada
+AINJ: lesiones/bajas confirmadas o N/D
+APOS: posición en tabla
+H2N: enfrentamientos directos recientes
+H2HW: victorias local H2H
+H2D: empates H2H
+H2AW: victorias visitante H2H
 H2LAST: último resultado H2H
-BTTS: probabilidad ambos anotan %
-O25: probabilidad más de 2.5 goles %
-U25: probabilidad menos de 2.5 goles %
+BTTS: prob ambos anotan %
+O25: prob +2.5 goles %
+U25: prob -2.5 goles %
 CS: marcador más probable
 FG: primer goleador probable
 CORNERS_H: corners promedio local
@@ -117,10 +135,10 @@ CARDS_H: tarjetas promedio local
 CARDS_A: tarjetas promedio visitante
 CARDS_TOTAL: total tarjetas esperado
 CARDS_PICK: predicción tarjetas
-PENALTY_PROB: probabilidad de penal %
-HT_PICK: resultado al medio tiempo
-ANALYSIS: 3-4 oraciones en español con análisis táctico real basado en los datos encontrados
-F1: factor clave 1 en español (basado en datos reales)
+PENALTY_PROB: probabilidad penal %
+HT_PICK: resultado medio tiempo
+ANALYSIS: 3-4 oraciones análisis táctico en español con datos reales verificados
+F1: factor clave 1 español
 F1T: pos o neg o neu
 F2: factor clave 2
 F2T: pos o neg o neu
@@ -130,16 +148,16 @@ F4: factor clave 4
 F4T: pos o neg o neu
 F5: factor clave 5
 F5T: pos o neg o neu
-VEX: yes o no (solo si hay value bet claro basado en datos)
-VBET: descripción del value bet
-VOP: probabilidad real según tu análisis %
-VMP: probabilidad implícita del mercado %
-VMO: cuota del mercado
-VEDGE: ventaja sobre el mercado %
-VK: porcentaje Kelly recomendado
-VV: explicación del value en español`;
+VEX: yes o no
+VBET: descripción value bet
+VOP: prob real según análisis %
+VMP: prob implícita mercado %
+VMO: cuota mercado
+VEDGE: ventaja %
+VK: porcentaje Kelly
+VV: explicación value en español`;
 
-  // ── Step 3: Call Claude with web search enabled ──
+  // ── Step 3: Call Claude with web search ──
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -164,8 +182,6 @@ VV: explicación del value en español`;
     }
 
     const data = await response.json();
-
-    // Extract text from response (may have multiple content blocks with web search)
     let resultText = '';
     for (const block of (data.content || [])) {
       if (block.type === 'text' && block.text) {
@@ -173,8 +189,7 @@ VV: explicación del value en español`;
       }
     }
 
-    if (!resultText.trim()) throw new Error('Empty response from AI');
-
+    if (!resultText.trim()) throw new Error('Empty AI response');
     return res.status(200).json({ result: resultText.trim(), source: 'live' });
 
   } catch (error) {
