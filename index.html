@@ -294,14 +294,20 @@ async function fetchAnalysis(m,iv){
 function parseR(text){
   const g=(k)=>{const m=text.match(new RegExp(k+':\\s*(.+)','i'));return m?m[1].trim():null;};
   const n=(k,d=0)=>{const v=g(k);return v?parseFloat(v)||d:d;};
+  // Clean form: extract only W, D, L characters and join with -
+  const cleanForm=(raw)=>{
+    if(!raw) return null;
+    const matches = raw.match(/\b[WDL]\b/g);
+    return matches ? matches.slice(0,5).join('-') : null;
+  };
   return{
     pick:g('PICK')||'Local',conf:n('CONF',65),
     summary:g('SUMMARY')||'Análisis basado en estadísticas.',
     ph:n('PH',45),pd:n('PD',27),pa:n('PA',28),
     oh:n('OH',2.0),od:n('OD',3.3),oa:n('OA',3.8),
-    hform:g('HFORM')||'W-D-W-L-W',hgf:n('HGF',1.5),hga:n('HGA',1.1),
+    hform:cleanForm(g('HFORM'))||'W-D-W-L-W',hgf:n('HGF',1.5),hga:n('HGA',1.1),
     hrec:g('HREC')||'—',hinj:g('HINJ')||'OK',hpos:g('HPOS')||'—',
-    aform:g('AFORM')||'W-D-L-W-D',agf:n('AGF',1.2),aga:n('AGA',1.3),
+    aform:cleanForm(g('AFORM'))||'W-D-L-W-D',agf:n('AGF',1.2),aga:n('AGA',1.3),
     arec:g('AREC')||'—',ainj:g('AINJ')||'OK',apos:g('APOS')||'—',
     h2n:n('H2N',5),h2hw:n('H2HW',2),h2d:n('H2D',1),h2aw:n('H2AW',2),h2last:g('H2LAST')||'—',
     btts:n('BTTS',52),o25:n('O25',55),u25:n('U25',45),cs:g('CS')||'1-1',fg:g('FG')||'—',
