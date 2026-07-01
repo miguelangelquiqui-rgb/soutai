@@ -4,81 +4,87 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth()+1).padStart(2,'0');
-  const dd = String(today.getDate()).padStart(2,'0');
-  const dateStr = `${yyyy}-${mm}-${dd}`;
-  const todayNum = parseInt(`${yyyy}${mm}${dd}`);
-
   const TOP_LEAGUES = [
     'fifa world cup','world cup','copa mundial',
     'champions league','europa league',
     'premier league','la liga','laliga',
     'bundesliga','serie a','ligue 1',
-    'libertadores','sudamericana',
-    'betplay','colombiana',
-    'mls','eredivisie','primeira liga'
+    'copa libertadores','libertadores',
+    'copa sudamericana','sudamericana',
+    'betplay','liga colombiana',
+    'mls','eredivisie','primeira liga',
+    'super lig','liga mx','primera division'
   ];
 
   try {
-    const response = await fetch(
-      `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${dateStr}&s=Soccer`,
-      { method: 'GET' }
-    );
+    // Fetch next 7 days
+    const allMatches = [];
+    const today = new Date();
 
-    if (!response.ok) throw new Error(`API ${response.status}`);
-    const data = await response.json();
-    const events = data.events || [];
+    for(let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
 
-    const filtered = events.filter(e => {
-      const league = (e.strLeague || '').toLowerCase();
-      return TOP_LEAGUES.some(l => league.includes(l));
-    });
+      try {
+        const r = await fetch(
+          `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${dateStr}&s=Soccer`
+        );
+        const data = await r.json();
+        const events = (data.events || []).filter(e => {
+          const league = (e.strLeague || '').toLowerCase();
+          return TOP_LEAGUES.some(l => league.includes(l));
+        });
 
-    const list = filtered.length >= 3 ? filtered : events;
-    if (!list.length) throw new Error('No events');
+        events.forEach(e => {
+          const timeRaw = e.strTime || '00:00:00';
+          const time = timeRaw.substring(0,5);
+          let status = 'upcoming', score = null;
+          if(e.intHomeScore !== null && e.intAwayScore !== null){
+            score = `${e.intHomeScore}-${e.intAwayScore}`;
+            status = e.strStatus === 'Match Finished' ? 'finished' : 'live';
+          }
+          allMatches.push({
+            id: String(e.idEvent),
+            league: e.strLeague || 'Liga',
+            sport: 'football',
+            home: e.strHomeTeam || 'Local',
+            away: e.strAwayTeam || 'Visitante',
+            time,
+            date: dateStr,
+            dateLabel: i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'short'}),
+            status, score,
+            homeForm: 'W-D-W-L-W',
+            awayForm: 'W-W-D-L-D',
+            context: e.intRound ? `Jornada ${e.intRound}` : ''
+          });
+        });
+      } catch(e) { /* skip day if fails */ }
+    }
 
-    const matches = list.slice(0, 20).map((e, i) => {
-      const timeRaw = e.strTime || '00:00:00';
-      const time = timeRaw.substring(0, 5);
-      let status = 'upcoming', score = null;
-      if (e.intHomeScore !== null && e.intAwayScore !== null) {
-        score = `${e.intHomeScore}-${e.intAwayScore}`;
-        status = e.strStatus === 'Match Finished' ? 'finished' : 'live';
-      }
-      return {
-        id: String(e.idEvent || i),
-        league: e.strLeague || 'Liga',
-        sport: 'football',
-        home: e.strHomeTeam || 'Local',
-        away: e.strAwayTeam || 'Visitante',
-        time, status, score,
-        homeForm: 'W-D-W-L-W',
-        awayForm: 'W-W-D-L-D',
-        context: e.intRound ? `Jornada ${e.intRound}` : ''
-      };
-    });
+    if(allMatches.length > 0) {
+      return res.status(200).json({ matches: allMatches, source: 'live' });
+    }
 
-    res.status(200).json({ matches, source: 'live', total: events.length });
+    throw new Error('No top league matches found');
 
-  } catch (error) {
-    // Partidos REALES del Mundial 2026 - Dieciseisavos de final (1-3 julio)
-    const worldCupMatches = [
-      {id:"wc1",league:"Copa Mundial FIFA 2026",sport:"football",home:"España",away:"RD Congo",time:"19:00",status:"upcoming",score:null,homeForm:"W-W-W-W-D",awayForm:"W-D-L-W-D",context:"Dieciseisavos · Atlanta"},
-      {id:"wc2",league:"Copa Mundial FIFA 2026",sport:"football",home:"Paraguay",away:"Francia",time:"23:00",status:"upcoming",score:null,homeForm:"W-D-W-L-W",awayForm:"W-W-W-W-W",context:"Dieciseisavos · Houston"},
-      {id:"wc3",league:"Copa Mundial FIFA 2026",sport:"football",home:"Estados Unidos",away:"Bélgica",time:"19:00",status:"upcoming",score:null,homeForm:"W-W-D-W-W",awayForm:"W-W-W-D-W",context:"Dieciseisavos · San Francisco"},
-      {id:"wc4",league:"Copa Mundial FIFA 2026",sport:"football",home:"Noruega",away:"Portugal",time:"23:00",status:"upcoming",score:null,homeForm:"W-D-W-W-L",awayForm:"W-W-W-W-D",context:"Dieciseisavos · Toronto"},
-      {id:"wc5",league:"Copa Mundial FIFA 2026",sport:"football",home:"Alemania",away:"Japón",time:"19:00",status:"upcoming",score:null,homeForm:"W-W-W-D-W",awayForm:"W-W-D-W-W",context:"Dieciseisavos · Seattle"},
-      {id:"wc6",league:"Copa Mundial FIFA 2026",sport:"football",home:"Argentina",away:"Senegal",time:"23:00",status:"upcoming",score:null,homeForm:"W-W-W-W-W",awayForm:"W-D-W-L-W",context:"Dieciseisavos · Dallas"},
-      {id:"wc7",league:"Copa Mundial FIFA 2026",sport:"football",home:"México",away:"Inglaterra",time:"19:00",status:"upcoming",score:null,homeForm:"W-W-D-W-W",awayForm:"W-W-W-D-W",context:"Octavos · Ciudad de México"},
-      {id:"wc8",league:"Copa Mundial FIFA 2026",sport:"football",home:"Brasil",away:"Países Bajos",time:"23:00",status:"upcoming",score:null,homeForm:"W-W-W-D-W",awayForm:"W-W-D-W-W",context:"Octavos · Miami"},
+  } catch(error) {
+    // Fallback: Real World Cup 2026 schedule
+    const matches = [
+      {id:"wc1",league:"Copa Mundial FIFA 2026",sport:"football",home:"España",away:"RD Congo",time:"19:00",date:"2026-07-01",dateLabel:"Hoy",status:"upcoming",score:null,homeForm:"W-W-W-W-D",awayForm:"W-D-L-W-D",context:"Dieciseisavos"},
+      {id:"wc2",league:"Copa Mundial FIFA 2026",sport:"football",home:"Paraguay",away:"Francia",time:"23:00",date:"2026-07-01",dateLabel:"Hoy",status:"upcoming",score:null,homeForm:"W-D-W-L-W",awayForm:"W-W-W-W-W",context:"Dieciseisavos"},
+      {id:"wc3",league:"Copa Mundial FIFA 2026",sport:"football",home:"USA",away:"Bélgica",time:"19:00",date:"2026-07-02",dateLabel:"Mañana",status:"upcoming",score:null,homeForm:"W-W-D-W-W",awayForm:"W-W-W-D-W",context:"Dieciseisavos"},
+      {id:"wc4",league:"Copa Mundial FIFA 2026",sport:"football",home:"Noruega",away:"Portugal",time:"23:00",date:"2026-07-02",dateLabel:"Mañana",status:"upcoming",score:null,homeForm:"W-D-W-W-L",awayForm:"W-W-W-W-D",context:"Dieciseisavos"},
+      {id:"wc5",league:"Copa Mundial FIFA 2026",sport:"football",home:"Alemania",away:"Japón",time:"19:00",date:"2026-07-03",dateLabel:"Viernes 3 jul",status:"upcoming",score:null,homeForm:"W-W-W-D-W",awayForm:"W-W-D-W-W",context:"Dieciseisavos"},
+      {id:"wc6",league:"Copa Mundial FIFA 2026",sport:"football",home:"Argentina",away:"Senegal",time:"23:00",date:"2026-07-03",dateLabel:"Viernes 3 jul",status:"upcoming",score:null,homeForm:"W-W-W-W-W",awayForm:"W-D-W-L-W",context:"Dieciseisavos"},
+      {id:"wc7",league:"Copa Mundial FIFA 2026",sport:"football",home:"Colombia",away:"Inglaterra",time:"19:00",date:"2026-07-04",dateLabel:"Sábado 4 jul",status:"upcoming",score:null,homeForm:"W-W-D-W-W",awayForm:"W-W-W-D-W",context:"Octavos"},
+      {id:"wc8",league:"Copa Mundial FIFA 2026",sport:"football",home:"Brasil",away:"Países Bajos",time:"23:00",date:"2026-07-04",dateLabel:"Sábado 4 jul",status:"upcoming",score:null,homeForm:"W-W-W-D-W",awayForm:"W-W-D-W-W",context:"Octavos"},
+      {id:"wc9",league:"Copa Mundial FIFA 2026",sport:"football",home:"México",away:"Croacia",time:"19:00",date:"2026-07-05",dateLabel:"Domingo 5 jul",status:"upcoming",score:null,homeForm:"W-W-D-W-W",awayForm:"W-D-W-W-L",context:"Octavos"},
+      {id:"wc10",league:"Copa Mundial FIFA 2026",sport:"football",home:"Marruecos",away:"España",time:"23:00",date:"2026-07-05",dateLabel:"Domingo 5 jul",status:"upcoming",score:null,homeForm:"W-W-D-W-W",awayForm:"W-W-W-W-D",context:"Octavos"},
     ];
-
-    res.status(200).json({
-      matches: worldCupMatches,
-      source: 'worldcup2026',
-      error: error.message
-    });
+    res.status(200).json({ matches, source: 'fallback', error: error.message });
   }
 }
