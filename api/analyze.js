@@ -235,7 +235,7 @@ NOTA: Las probabilidades del mercado incluyen margen (~5-8%). Las probabilidades
 
     // Score matrix
     let homeWin = 0, draw = 0, awayWin = 0;
-    let btts = 0, over25 = 0, under25 = 0;
+    let btts = 0, over05 = 0, over15 = 0, over25 = 0, over35 = 0, over45 = 0;
     const scores = [];
     const xH = calibratedHomeXG, xA = calibratedAwayXG;
 
@@ -246,8 +246,12 @@ NOTA: Las probabilidades del mercado incluyen margen (~5-8%). Las probabilidades
         else if (h === a) draw += p;
         else awayWin += p;
         if (h > 0 && a > 0) btts += p;
-        if (h + a > 2) over25 += p;
-        if (h + a < 3) under25 += p;
+        const t = h + a;
+        if (t > 0) over05 += p;
+        if (t > 1) over15 += p;
+        if (t > 2) over25 += p;
+        if (t > 3) over35 += p;
+        if (t > 4) over45 += p;
         scores.push({ h, a, p });
       }
     }
@@ -257,35 +261,45 @@ NOTA: Las probabilidades del mercado incluyen margen (~5-8%). Las probabilidades
     draw = draw / total * 100;
     awayWin = awayWin / total * 100;
     btts = btts / total * 100;
+    over05 = over05 / total * 100;
+    over15 = over15 / total * 100;
     over25 = over25 / total * 100;
-    under25 = under25 / total * 100;
+    over35 = over35 / total * 100;
+    over45 = over45 / total * 100;
     scores.sort((a, b) => b.p - a.p);
     const topScore = scores[0];
+    const totalXG = (xH + xA).toFixed(2);
 
     poissonData = {
-      homeXG: xH.toFixed(2), awayXG: xA.toFixed(2),
+      homeXG: xH.toFixed(2), awayXG: xA.toFixed(2), totalXG,
       homeWin: homeWin.toFixed(1), draw: draw.toFixed(1), awayWin: awayWin.toFixed(1),
       homeOdds: (100 / homeWin).toFixed(2), drawOdds: (100 / draw).toFixed(2), awayOdds: (100 / awayWin).toFixed(2),
-      btts: btts.toFixed(1), over25: over25.toFixed(1), under25: under25.toFixed(1),
+      btts: btts.toFixed(1),
+      over05: over05.toFixed(1), over15: over15.toFixed(1),
+      over25: over25.toFixed(1), over35: over35.toFixed(1), over45: over45.toFixed(1),
+      under25: (100 - over25).toFixed(1),
       topScore: `${topScore.h}-${topScore.a}`, topScoreProb: (topScore.p / total * 100).toFixed(1),
+      top3Scores: scores.slice(0,3).map(s => `${s.h}-${s.a} (${(s.p/total*100).toFixed(1)}%)`).join(', '),
       usedSplits: useSplits, calibratedWithOdds: !!oddsData,
       homeAdv: homeAdv.toFixed(2),
     };
 
     poissonText = `\n\n═══ MODELO POISSON AVANZADO ═══
-${useSplits ? '✅ Usando datos HOME/AWAY separados (más preciso)' : '⚠️ Usando datos generales (sin splits disponibles)'}
-${oddsData ? '✅ Calibrado con cuotas reales del mercado (blend 60% Poisson + 40% mercado)' : '⚠️ Sin calibración de mercado (sin API de cuotas)'}
-Factor localía: ${homeAdv}x ${isNeutral ? '(sede neutral)' : isHostNation ? '(selección anfitriona)' : '(liga local)'}
-xG ${home}: ${poissonData.homeXG} | xG ${away}: ${poissonData.awayXG}
+${useSplits ? '✅ Usando datos HOME/AWAY separados' : '⚠️ Usando datos generales'}
+${oddsData ? '✅ Calibrado con cuotas reales del mercado' : '⚠️ Sin calibración de mercado'}
+Factor localía: ${homeAdv}x ${isNeutral ? '(sede neutral)' : isHostNation ? '(anfitrión)' : '(liga)'}
+xG ${home}: ${poissonData.homeXG} | xG ${away}: ${poissonData.awayXG} | Total xG: ${totalXG}
 
-PROBABILIDADES FINALES:
-Victoria ${home}: ${poissonData.homeWin}% (cuota justa: ${poissonData.homeOdds})
-Empate: ${poissonData.draw}% (cuota justa: ${poissonData.drawOdds})
-Victoria ${away}: ${poissonData.awayWin}% (cuota justa: ${poissonData.awayOdds})
-BTTS: ${poissonData.btts}% | Over 2.5: ${poissonData.over25}% | Under 2.5: ${poissonData.under25}%
-Marcador más probable: ${poissonData.topScore} (${poissonData.topScoreProb}%)
+PROBABILIDADES 1X2:
+${home}: ${poissonData.homeWin}% | Empate: ${poissonData.draw}% | ${away}: ${poissonData.awayWin}%
 
-Ajusta ±3% MÁXIMO por factores cualitativos. Justifica cada ajuste.`;
+GOLES (Poisson):
+Over 0.5: ${poissonData.over05}% | Over 1.5: ${poissonData.over15}% | Over 2.5: ${poissonData.over25}%
+Over 3.5: ${poissonData.over35}% | Over 4.5: ${poissonData.over45}%
+BTTS: ${poissonData.btts}%
+Top 3 marcadores: ${poissonData.top3Scores}
+
+Ajusta ±3% MÁXIMO. Justifica ajustes.`;
   }
 
   // Helper function for calibration
