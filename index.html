@@ -329,7 +329,7 @@ async function fetchAnalysis(m,iv){
     for(let i=0;i<5;i++){const e=document.getElementById('ls'+i);if(e)e.className='ls d';}
     await new Promise(r=>setTimeout(r,300));
     if(data.error)throw new Error(data.error);
-    renderA(parseR(data.result),m);
+    renderA(parseR(data.result),m,data.poisson||null);
   }catch(e){
     clearInterval(iv);
     document.getElementById('ac').innerHTML=`
@@ -430,7 +430,7 @@ function sr(l,v,cl='var(--text)'){
   return `<div class="sr"><span class="sl2">${l}</span><span class="sv" style="color:${cl};text-align:right;max-width:60%">${v}</span></div>`;
 }
 
-function renderA(d,m){
+function renderA(d,m,poisson){
   const vbSection=d.vex?`
     <div class="vbelt">
       <div class="vbt">💰 Value Bet detectado</div>
@@ -474,6 +474,23 @@ function renderA(d,m){
       <div class="pr2" style="margin-top:10px"><div class="ph2"><span class="pn">Empate</span><span class="pp" style="color:var(--yellow)">${d.pd}%</span></div><div class="pt"><div class="pf pfd" id="pd"></div></div></div>
       <div class="pr2" style="margin-top:10px"><div class="ph2"><span class="pn">${m.away}</span><span class="pp" style="color:var(--accent2)">${d.pa}%</span></div><div class="pt"><div class="pf pfa" id="pa"></div></div></div>
       </div>
+
+    ${poisson ? `<div class="rb">
+      <div class="re">⚽ Goles — Modelo Poisson</div>
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">xG ${m.home}</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--accent)">${poisson.homeXG}</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--yellow)">${poisson.totalXG}</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">xG ${m.away}</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--accent2)">${poisson.awayXG}</div></div>
+      </div>
+      ${sr('Over 0.5 goles',poisson.over05+'%','var(--green)')}
+      ${sr('Over 1.5 goles',poisson.over15+'%','var(--green)')}
+      ${sr('Over 2.5 goles',poisson.over25+'%', parseFloat(poisson.over25)>55?'var(--green)':'var(--yellow)')}
+      ${sr('Over 3.5 goles',poisson.over35+'%','var(--yellow)')}
+      ${sr('Over 4.5 goles',poisson.over45+'%','var(--red)')}
+      ${sr('Ambos anotan (BTTS)',poisson.btts+'%','var(--accent)')}
+      ${sr('Marcador más probable',poisson.topScore,'var(--accent2)')}
+      ${poisson.top3Scores ? `<div style="margin-top:8px;font-size:10px;color:var(--muted);text-align:center">Top 3: ${poisson.top3Scores}</div>` : ''}
+    </div>` : ''}
 
     <div class="specials">
       <div class="spec-card">
